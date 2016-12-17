@@ -4,6 +4,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include "supervoxel_cluster_search.h"
+#include "supervoxel_mapping.hpp"
 
 #define SEARCH_SUPERVOXEL_NN 10;
 #define NORM_VR 0.1
@@ -34,26 +35,76 @@ typedef typename SupervoxelClusteringT::OctreeAdjacencyT::Ptr AdjacencyOctreeT;
 
 struct octBounds {
 	PointT minPt, maxPt;
-}octreeBounds;
+}octree_bounds_;
 
+struct MI_Opti_Data{
+	SVMap* svMap;
+	PointCloudT::Ptr scan1;
+	PointCloudT::Ptr scan2;
+};
 
-class SupevoxelRegistration {
+class SupervoxelRegistration {
 
 public:
 
-	void alignScans(PointCloudT::Ptr A, PointCloudT::Ptr B);
+	SupervoxelRegistration(float vr, float sr);
+
+	~SupervoxelRegistration();
+
+	void setScans(
+			PointCloudT::Ptr A,
+			PointCloudT::Ptr B);
+
+	void
+	showPointCloud(
+			typename PointCloudT::Ptr);
+
+	void
+	showPointClouds(
+			std::string viewerTitle);
+
+	void
+	showTestSuperVoxel(
+			int supervoxelLabel);
+
+	void
+	alignScans();
 
 protected:
 
 	std::map <uint32_t, pcl::Supervoxel<PointT>::Ptr>
-	initializeVoxels(
-			PointCloudT::Ptr scan1,
-			PointCloudT::Ptr scan2,
-			SupervoxelClusteringT& super,
-			SVMap& supervoxelMapping,
-			LabeledLeafMapT& labeledLeafMap);
+	initializeVoxels();
 
+	void
+	createSuperVoxelMappingForScan1 ();
+
+	void
+	createSuperVoxelMappingForScan2 ();
+
+	void
+	calculateSupervoxelScanBData();
+
+	Eigen::Affine3d
+	optimize();
+
+	void
+	createKDTreeForSupervoxels();
+
+	void
+	prepareForRegistration();
+
+private:
+
+	SupervoxelClusteringT supervoxelClustering;
+	SVMap supervoxelMap;
+	LabeledLeafMapT leafMapping;
+	float vr, sr;
+	PointCloudT::Ptr A, B;
+	KdTreeXYZ supervoxelKdTree;
+	std::vector<int> kdTreeLabels;
 };
 
 
 }
+
+#endif
