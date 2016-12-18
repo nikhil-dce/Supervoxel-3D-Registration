@@ -30,7 +30,7 @@ int initOptions(int argc, char* argv[]) {
 	programOptions.normalWeight = 1.0f;
 	programOptions.vr = 1.0f;
 	programOptions.sr = 5.0f;
-	programOptions.test = 0; // 324
+	programOptions.test = 0; // 324 // 607
 	programOptions.showScans = false;
 
 	po::options_description desc ("Allowed Options");
@@ -73,7 +73,7 @@ main (int argc, char *argv[]) {
 		return 1;
 
 	if (argc < 3) {
-		std::cerr << "One or more scan files/transform missing";
+		std::cerr << "One or more scan files/transform missing" << std::endl;
 		return 1;
 	}
 
@@ -115,6 +115,11 @@ main (int argc, char *argv[]) {
 	Eigen::Affine3d transform = Eigen::Affine3d::Identity();
 
 	if (transformFile.size() != 0) {
+
+		ss.str(std::string());
+		ss << dataDir << transformFile;
+
+		transformFile = ss.str();
 
 		std::ifstream in(transformFile.c_str());
 		if (!in) {

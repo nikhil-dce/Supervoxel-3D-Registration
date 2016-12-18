@@ -71,6 +71,8 @@ SupervoxelRegistration::prepareForRegistration() {
 void
 SupervoxelRegistration::alignScans() {
 
+	prepareForRegistration();
+
 	Eigen::Affine3d trans_last = Eigen::Affine3d::Identity();
 	Eigen::Affine3d trans_new;
 	PointCloudT::Ptr transformedScan2 = boost::shared_ptr <PointCloudT> (new PointCloudT ());
@@ -90,6 +92,7 @@ SupervoxelRegistration::alignScans() {
 		transformPointCloud (*B, *transformedScan2, trans_last);
 		createSuperVoxelMappingForScan2();
 
+		cout << "Iteration " << iteration+1 << " ..." << endl;
 		trans_new = optimize();
 
 		/* compute the delta from this iteration */
@@ -426,8 +429,6 @@ SupervoxelRegistration::createSuperVoxelMappingForScan2 () {
 			cout << "Not present in voxel: " << a.x << ' ' << a.y << ' ' << a.z << endl;
 		}
 	}
-
-	cout << "Cleared Scan B Data" << endl;
 
 	// leafVoxelMap created for scan2
 
