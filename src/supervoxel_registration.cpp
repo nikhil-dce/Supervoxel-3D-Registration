@@ -33,9 +33,12 @@
 
 using namespace svr;
 
-SupervoxelRegistration::SupervoxelRegistration(float vr, float sr) {
-	this->vr = vr;
-	this->sr = sr;
+SupervoxelRegistration::SupervoxelRegistration(float voxelR, float seedR):
+	supervoxelClustering (voxelR, seedR),
+	vr (voxelR),
+	sr (seedR),
+	octree_bounds_()
+{
 
 	octree_bounds_.minPt.x = -120;
 	octree_bounds_.minPt.y = -120;
@@ -424,6 +427,8 @@ SupervoxelRegistration::createSuperVoxelMappingForScan2 () {
 		}
 	}
 
+	cout << "Cleared Scan B Data" << endl;
+
 	// leafVoxelMap created for scan2
 
 	LeafVoxelMapT::iterator leafVoxelItr;
@@ -763,7 +768,7 @@ double mi_f (const gsl_vector *pose, void* params) {
 		supervoxel->clearScanBData();
 	}
 
-	calculateSupervoxelScanBData();
+//	calculateSupervoxelScanBData();
 
 //	double mi = calculateMutualInformation();
 
@@ -779,7 +784,7 @@ SupervoxelRegistration::optimize() {
 	MI_Opti_Data* mod = new MI_Opti_Data();
 	mod->scan1 = A;
 	mod->scan2 = B;
-	mod->svMap = supervoxelMap;
+	mod->svMap = &supervoxelMap;
 
 	const gsl_multimin_fminimizer_type *T = gsl_multimin_fminimizer_nmsimplex2;
 

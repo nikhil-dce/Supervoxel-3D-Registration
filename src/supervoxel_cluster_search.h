@@ -150,6 +150,8 @@ namespace pcl
 
     public:
 
+      SupervoxelClustering ();
+
       /** \brief Constructor that sets default values for member variables.
        *  \param[in] voxel_resolution The resolution (in meters) of voxels used
        *  \param[in] seed_resolution The average size (in meters) of resulting supervoxels

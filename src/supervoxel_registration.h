@@ -33,9 +33,14 @@ typedef std::map<typename SupervoxelClusteringT::LeafContainerT*, uint32_t> Labe
 typedef std::map<typename SupervoxelClusteringT::LeafContainerT*, typename VData::Ptr> LeafVoxelMapT;
 typedef typename SupervoxelClusteringT::OctreeAdjacencyT::Ptr AdjacencyOctreeT;
 
-struct octBounds {
+struct OctreeBounds {
+
 	PointT minPt, maxPt;
-}octree_bounds_;
+
+	OctreeBounds() {
+
+	}
+};
 
 struct MI_Opti_Data{
 	SVMap* svMap;
@@ -102,6 +107,7 @@ private:
 	PointCloudT::Ptr A, B;
 	KdTreeXYZ supervoxelKdTree;
 	std::vector<int> kdTreeLabels;
+	OctreeBounds octree_bounds_;
 };
 
 

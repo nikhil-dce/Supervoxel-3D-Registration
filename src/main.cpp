@@ -1,5 +1,13 @@
 #include <string>
 #include "supervoxel_registration.h"
+#include <boost/program_options.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/format.hpp>
+
+#include <pcl/common/transforms.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
 
 struct options {
 
@@ -43,7 +51,7 @@ int initOptions(int argc, char* argv[]) {
 	po::notify(vm);
 
 	if (vm.count("help")) {
-		std::cout << "Supervoxel MI based SCan Alignment" << std::endl << desc << std::endl;
+		std::cout << "Supervoxel MI based Scan Alignment" << std::endl << desc << std::endl;
 		return 1;
 	} else {
 
@@ -74,13 +82,15 @@ main (int argc, char *argv[]) {
 
 	s1 = atoi(argv[1]);
 	s2 = atoi(argv[2]);
-	transformFile = argv[3];
+
+	if (argc > 3)
+		transformFile = argv[3];
 
 	const std::string dataDir = "../data/";
 
-	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr scanA = boost::shared_ptr <pcl::PointXYZRGBA> (new pcl::PointXYZRGBA ());
-	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr scanB = boost::shared_ptr <pcl::PointXYZRGBA> (new pcl::PointXYZRGBA ());
-	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr temp = boost::shared_ptr <pcl::PointXYZRGBA> (new pcl::PointXYZRGBA ());
+	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr scanA = boost::shared_ptr <pcl::PointCloud<pcl::PointXYZRGBA> > (new pcl::PointCloud<pcl::PointXYZRGBA> ());
+	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr scanB = boost::shared_ptr <pcl::PointCloud<pcl::PointXYZRGBA> > (new pcl::PointCloud<pcl::PointXYZRGBA> ());
+	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr temp = boost::shared_ptr <pcl::PointCloud<pcl::PointXYZRGBA> > (new pcl::PointCloud<pcl::PointXYZRGBA> ());
 
 	std::cout << "Loading PointClouds..." << std::endl;
 
@@ -95,14 +105,13 @@ main (int argc, char *argv[]) {
 
 	// clear string
 	ss.str(std::string());
-	ss << dataDir << boost::format("%04d.pcd")%s2;
+	ss << dataDir << boost::format("scan_%04d.pcd")%s2;
 
 	if (pcl::io::loadPCDFile<pcl::PointXYZRGBA> (ss.str(), *temp)) {
 		std::cout << "Error loading cloud file: " << ss.str() << std::endl;
 		return (1);
 	}
 
-	gsl_vector *base_pose;
 	Eigen::Affine3d transform = Eigen::Affine3d::Identity();
 
 	if (transformFile.size() != 0) {
@@ -137,6 +146,8 @@ main (int argc, char *argv[]) {
 
 	if (programOptions.test != 0 || programOptions.showScans) {
 
+		std::cout << "Testing..." << std::endl;
+
 		if (programOptions.showScans && programOptions.test == 0) {
 			supervoxelRegistration.showPointClouds("Supervoxel Based MI Viewer: " + transformFile);
 			return 0;
@@ -145,6 +156,9 @@ main (int argc, char *argv[]) {
 		}
 
 	} else {
+
+		std::cout << "Alignment Scan" << std::endl;
+
 		// begin registration
 		supervoxelRegistration.alignScans();
 	}
