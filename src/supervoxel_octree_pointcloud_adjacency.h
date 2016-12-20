@@ -163,6 +163,13 @@ namespace pcl
         LeafContainerT*
         getLeafContainerAtPoint (const PointT& point_arg) const;
 
+        /** \brief Gets the leaf container's bounds for a given point.
+         *
+         * \param[in] point_arg Point to search for
+         * */
+        void
+        getLeafBounds(const PointT& point_arg, float& ax, float& bx, float& ay, float& by, float& az, float& bz);
+
         /** \brief Computes an adjacency graph of voxel relations.
           *
           * \warning This slows down rapidly as cloud size increases due to the number of edges.

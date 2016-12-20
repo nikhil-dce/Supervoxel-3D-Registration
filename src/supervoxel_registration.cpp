@@ -374,7 +374,7 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
     // Epsilon1 + Epsilon2 = 1
     // TotalSupervoxelProbability has mass 1
     
-    for (svItr = supervoxel.begin(); svItr != supervoxel.end(); ++svItr) {
+    for (svItr = supervoxelMap.begin(); svItr != supervoxelMap.end(); ++svItr) {
         
         SData::Ptr supervoxel = svItr->second;
         SData::VoxelVectorPtr voxels = supervoxel->getVoxelAVector();
@@ -382,20 +382,29 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
         Eigen::Vector4f supervoxelCentroid = supervoxel->getCentroid();
         Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
         
-        
-        float probabilityOutliers =  voxels->size() * svr_util::cube<float>(vr) * PROBABILITY_OUTLIERS_SUPERVOXEL; // Epsilon2
+        double outlierPro = PROBABILITY_OUTLIERS_SUPERVOXEL;
+        double probabilityOutliers =  voxels->size() * svr_util::cube<float>(vr) * outlierPro; // Epsilon2
+        double totalProbabilityFromND = 0.0f; // Epsilon1
+        double epsilon1(0), epsilon2(0);
         
         typename SData::VoxelVector::iterator voxelItr;
         for (voxelItr = voxels->begin(); voxelItr != voxels->end(); ++voxelItr) {
     
+        	VData::Ptr voxel = (*voxelItr);
             float ax, bx, ay, by, az, bz;
-            float probabilityFromND = svr_util::calculateApproximateIntegralForVoxel(ax, bx, ay, by, az, bz, supervoxelCovariance, supervoxelCentroid);
             
-            int voxelSize = (*voxelItr)->getIndexVector()->size();
-            supervoxelPointCount += voxelSize;
-            supervoxelNormal += (*voxelItr)->getNormal();
+            adjTree->getLeafBounds(voxel->getCentroid(), ax, bx, ay, by, az, bz); // using centroid, any point should work
+
+            cout << "ax: " << ax << " bx: " << bx << " ay: " << ay << " by: " << by << " az: " << az << " bz: " << bz << endl;
+            totalProbabilityFromND += svr_util::calculateApproximateIntegralForVoxel(ax, bx, ay, by, az, bz, supervoxelCovariance, supervoxelCentroid);
         }
 
+        totalProbabilityFromND -= probabilityOutliers;
+        epsilon1 = (1-probabilityOutliers) / totalProbabilityFromND;
+        epsilon2 = 1-epsilon1;
+
+        cout << "Epsilon 1: " << epsilon1 << endl;
+        cout << "Epsilon 2: " << epsilon2 << endl;
         
     }
     
@@ -1032,7 +1041,7 @@ SupervoxelRegistration::showTestSuperVoxel(int supevoxelLabel) {
 			}
 		}
 
-		cout << svLabel << '\t' << "A: " << counterA << '\t' << "B: " << counterB << endl;
+//		cout << svLabel << '\t' << "A: " << counterA << '\t' << "B: " << counterB << endl;
 	}
 
 	showPointCloud(newCloud);

@@ -1,5 +1,5 @@
 #define NORMAL_3D_CONSTANT 0.063493636
-#define INTEGRAL_STEP 0.1
+#define INTEGRAL_STEP 0.5
 
 namespace svr_util {
 
@@ -41,14 +41,6 @@ transform_get_rotation(Eigen::Matrix4d t, double *x, double *y, double *z) {
     
 double calculateNormalProbabilityForPoint(float x, float y, float z, Eigen::Matrix3f covariance, Eigen::Vector4f mean) {
     
-    std::cout << "Covariance: " << std::endl;
-    std::cout << covariance;
-    std::cout << std::endl;
-    
-    std::cout << "Mean: " << std::endl;
-    std::cout << mean;
-    std::cout << std::endl;
-    
     std::cout << x << ' ' << y << ' ' << z << std::endl;
     
     double probability;
@@ -60,9 +52,13 @@ double calculateNormalProbabilityForPoint(float x, float y, float z, Eigen::Matr
     U << mean(0), mean(1), mean(2);
     
     float power = (X-U).transpose() * covariance.inverse() * (X-U);
-    probability = NORMAL_CONSTANT_3K * exp(-1 * power / 2) / covariance.determinant();
     
-    std::cout << probability << std::endl;
+    std::cout << "Power: " << power << std::endl;
+
+    float constant = NORMAL_3D_CONSTANT;
+    probability = constant * exp(-1 * power / 2) / sqrt(covariance.determinant());
+
+    std::cout << "Probability: " << probability << std::endl;
     
     return probability;
 }
@@ -70,49 +66,59 @@ double calculateNormalProbabilityForPoint(float x, float y, float z, Eigen::Matr
 double calculateApproximateIntegralForVoxel(float ax, float bx, float ay, float by, float az, float bz, Eigen::Matrix3f covariance, Eigen::Vector4f mean) {
 
     double integral = 0;
-    float delta = INTEGRAL_STEP;
+    double delta = INTEGRAL_STEP;
+
+    std::cout << "ax: " << ax << " ay: " << ay << " az: " << az << std::endl;
+
+    std::cout << "Covariance: " << std::endl;
+    std::cout << covariance;
+    std::cout << std::endl;
+
+    std::cout << "Mean: " << std::endl;
+    std::cout << mean;
+    std::cout << std::endl;
 
     // bx - ax = by - ay = bz - az => Voxel Resolution
     
     int m = fabs ( (bx-ax) / delta);
 
     
-    std::vector<float> weights;
+    std::vector<double> weights;
     
-    delta /= 3;
+    double deltaWeight = delta / 3;
     
     // calcute simpsons weights
-    weights.push_back(delta);
+    weights.push_back(deltaWeight);
     
-    for (int i == 1; i <= m-2; i++) {
+    for (int i = 1; i <= m-1; i++) {
         if (i%2 == 0)
-            weights.push_back(2 * delta);
+            weights.push_back(2 * deltaWeight);
         else
-            weights.push_back(4 * delta);
+            weights.push_back(4 * deltaWeight);
     }
     
-    weights.push_back(delta);
+    weights.push_back(deltaWeight);
     
     int counterX(0), counterY(0), counterZ(0);
     float x, y, z;
-    float wx, wy, wz;
+    double wx, wy, wz;
     
-    for (counterX = 0; counterX < m; counterX ++) {
+    for (counterX = 0; counterX <= m; counterX ++) {
         
         x = ax + (counterX * delta);
         wx = weights[counterX];
         
-        for (counterY = 0; counterY < m; counterY ++) {
+        for (counterY = 0; counterY <= m; counterY ++) {
             
             y = ay + (counterY * delta);
             wy = weights[counterY];
             
-            for (counterZ = 0; counterZ < m; counterZ ++) {
+            for (counterZ = 0; counterZ <= m; counterZ ++) {
             
                 z = az + (counterZ * delta);
                 wz = weights[counterZ];
                 
-                float weight = wx * wy * wz;
+                double weight = wx * wy * wz;
                 double pro = calculateNormalProbabilityForPoint(x, y, z, covariance, mean);
                 integral += pro * weight;
             
@@ -120,6 +126,8 @@ double calculateApproximateIntegralForVoxel(float ax, float bx, float ay, float 
         }
     }
     
+    std::cout << "Integral -> " << integral << std::endl;
+    return integral;
 }
     
 }

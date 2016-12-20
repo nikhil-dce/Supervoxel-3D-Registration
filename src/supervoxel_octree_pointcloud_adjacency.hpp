@@ -219,6 +219,21 @@ pcl::octree::OctreePointCloudAdjacency<PointT, LeafContainerT, BranchContainerT>
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 template<typename PointT, typename LeafContainerT, typename BranchContainerT> void
+pcl::octree::OctreePointCloudAdjacency<PointT, LeafContainerT, BranchContainerT>::getLeafBounds(
+		const PointT& point_arg, float& ax, float& bx, float& ay, float& by, float& az, float& bz) {
+
+	ax = static_cast<unsigned int> ((point_arg.x - this->min_x_) / this->resolution_);
+	ay = static_cast<unsigned int> ((point_arg.y - this->min_y_) / this->resolution_);
+	az = static_cast<unsigned int> ((point_arg.z - this->min_z_) / this->resolution_);
+
+	bx = ax + this->resolution_;
+	by = ay + this->resolution_;
+	bz = az + this->resolution_;
+
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template<typename PointT, typename LeafContainerT, typename BranchContainerT> void
 pcl::octree::OctreePointCloudAdjacency<PointT, LeafContainerT, BranchContainerT>::computeVoxelAdjacencyGraph (VoxelAdjacencyList &voxel_adjacency_graph)
 {
 	//TODO Change this to use leaf centers, not centroids!
