@@ -18,6 +18,8 @@
 // Min points to be present in supevoxel for MI consideration
 #define MIN_POINTS_IN_SUPERVOXEL 5
 
+#define PROBABILITY_OUTLIERS_SUPERVOXEL 0.3
+
 namespace svr {
 
 typedef pcl::PointXYZRGBA PointT;

@@ -9,6 +9,12 @@ inline Type square(Type x)
 	return x * x; // will only work on types for which there is the * operator.
 }
 
+template <typename Type>
+inline Type cube(Type x)
+{
+    return x * x * x; // will only work on types for which there is the * operator.
+}
+    
 void
 transform_get_translation(Eigen::Matrix4d t, double *x, double *y, double *z) {
 

@@ -10,25 +10,23 @@
 #include <boost/thread/thread.hpp>
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
+#include <gsl/gsl_multimin.h>
 
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/common/transforms.h>
 #include <pcl/visualization/pcl_visualizer.h>
-
 #include <pcl/kdtree/kdtree_flann.h>
-//#include <pcl/segmentation/supervoxel_clustering.h>
 
-#include "supervoxel_mapping.hpp"
+
 #include <cmath>
 #include <iomanip>
 
-
-#include <gsl/gsl_multimin.h>
 #include "supervoxel_octree_pointcloud_adjacency.h"
-#include <cmath>
+#include "supervoxel_mapping.hpp"
 #include "supervoxel_registration.h"
+#include "supervoxel_util.hpp"
 
 
 using namespace svr;
@@ -365,12 +363,41 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 			supervoxelNormal.normalize();
 			supervoxel->setNormal(supervoxelNormal);
 		}
-
+        
 	}
     
     // Covariance and mean calculated
-    // Calculate c1 and c2 for each supervoxel
     
+    
+    // Calculate Epsilon1 and Epsilon2 for each supervoxel where
+    // TotalSupervoxelProbability = Epsilon1 * ProbabilityFromNaturalDistribution + Epsilon2 * ProbabilityFromOutilers
+    // Epsilon1 + Epsilon2 = 1
+    // TotalSupervoxelProbability has mass 1
+    
+    for (svItr = supervoxel.begin(); svItr != supervoxel.end(); ++svItr) {
+        
+        SData::Ptr supervoxel = svItr->second;
+        SData::VoxelVectorPtr voxels = supervoxel->getVoxelAVector();
+        
+        Eigen::Vector4f supervoxelCentroid = supervoxel->getCentroid();
+        Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
+        
+        
+        float probabilityOutliers =  voxels->size() * svr_util::cube<float>(vr) * PROBABILITY_OUTLIERS_SUPERVOXEL; // Epsilon2
+        
+        typename SData::VoxelVector::iterator voxelItr;
+        for (voxelItr = voxels->begin(); voxelItr != voxels->end(); ++voxelItr) {
+    
+            float ax, bx, ay, by, az, bz;
+            float probabilityFromND = svr_util::calculateApproximateIntegralForVoxel(ax, bx, ay, by, az, bz, supervoxelCovariance, supervoxelCentroid);
+            
+            int voxelSize = (*voxelItr)->getIndexVector()->size();
+            supervoxelPointCount += voxelSize;
+            supervoxelNormal += (*voxelItr)->getNormal();
+        }
+
+        
+    }
     
 }
 
