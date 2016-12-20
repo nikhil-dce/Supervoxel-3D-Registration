@@ -132,25 +132,25 @@ public:
 	}
 
 	void
-	setCentroidA(pcl::PointXYZRGBA p) {
-		centroidA = p;
+    setCentroid(Eigen::Vector4f c) {
+        centroid = c;
 	}
 
-	pcl::PointXYZRGBA
-	getCentroidA() {
-		return centroidA;
+    Eigen::Vector4f
+	getCentroid() {
+		return centroid;
 	}
 
-	void
-	setCentroidB(pcl::PointXYZRGBA p) {
-		centroidB = p;
-	}
-
-	pcl::PointXYZRGBA
-	getCentroidB() {
-		return centroidB;
-	}
-
+    Eigen::Matrix3f
+    getCovariance() {
+        return covariance;
+    }
+    
+    void
+    setCovariance(Eigen::Matrix3f cov) {
+        covariance = cov;
+    }
+    
 	void
 	setPointACount(int count) {
 		pointACount = count;
@@ -170,127 +170,7 @@ public:
 	getPointBCount() {
 		return pointBCount;
 	}
-
-	int
-	getVarianceXCodeA() {
-		return varianceXCodeA;
-	}
-
-	void
-	setVarianceXCodeA(int code) {
-		varianceXCodeA = code;
-	}
-
-	int
-	getVarianceXCodeB() {
-		return varianceXCodeB;
-	}
-
-	void
-	setVarianceXCodeB(int code) {
-		varianceXCodeB = code;
-	}
-
-	std::string
-	getVarianceXCodeAB() {
-		return varianceXCodeAB;
-	}
-
-	void
-	setVarianceXCodeAB(std::string code) {
-		varianceXCodeAB = code;
-	}
-
-	int
-	getVarianceYCodeA() {
-		return varianceYCodeA;
-	}
-
-	void
-	setVarianceYCodeA(int code) {
-		varianceYCodeA = code;
-	}
-
-	int
-	getVarianceYCodeB() {
-		return varianceYCodeB;
-	}
-
-	void
-	setVarianceYCodeB(int code) {
-		varianceYCodeB = code;
-	}
-
-	std::string
-	getVarianceYCodeAB() {
-		return varianceYCodeAB;
-	}
-
-	void
-	setVarianceYCodeAB(std::string code) {
-		varianceYCodeAB = code;
-	}
-
-	int
-	getVarianceZCodeA() {
-		return varianceZCodeA;
-	}
-
-	void
-	setVarianceZCodeA(int code) {
-		varianceZCodeA = code;
-	}
-
-	int
-	getVarianceZCodeB() {
-		return varianceZCodeB;
-	}
-
-	void
-	setVarianceZCodeB(int code) {
-		varianceZCodeB = code;
-	}
-
-	std::string
-	getVarianceZCodeAB() {
-		return varianceZCodeAB;
-	}
-
-	void
-	setVarianceZCodeAB(std::string code) {
-		varianceZCodeAB = code;
-	}
-
-	int
-	getCentroidCodeA() {
-		return centroidCodeA;
-	}
-
-	void
-	setCentroidCodeA(int code) {
-		centroidCodeA = code;
-	}
-
-	int
-	getCentroidCodeB() {
-		return centroidCodeB;
-	}
-
-	void
-	setCentroidCodeB(int code) {
-		centroidCodeB = code;
-	}
-
-	std::string
-	getCentroidCodeAB() {
-		return centroidCodeAB;
-	}
-
-	void
-	setCentroidCodeAB(std::string code) {
-		centroidCodeAB = code;
-	}
-
+    
 	void
 	clearScanBMapping() {
 		voxelsB->clear();
@@ -299,57 +179,20 @@ public:
 
 	void
 	clearScanBData() {
-		// clear variance x
-		varianceXCodeB = 0;
-		varianceXCodeAB = "";
-
-		// clear variance y
-		varianceYCodeB = 0;
-		varianceYCodeAB = "";
-
-		// clear variance z
-		varianceZCodeB = 0;
-		varianceZCodeAB = "";
-
-		centroidCodeB = 0;
-		centroidCodeAB = "";
-
-		centroidB.x = 0;
-		centroidB.y = 0;
-		centroidB.z = 0;
-		centroidB.r = 0;
-		centroidB.g = 0;
-		centroidB.b = 0;
+		
 	}
 
 private:
 
 	int label;
 
-	int centroidCodeA;
-	int centroidCodeB;
-	std::string centroidCodeAB;
-
-	int varianceXCodeA;
-	int varianceXCodeB;
-	std::string varianceXCodeAB;
-
-	int varianceYCodeA;
-	int varianceYCodeB;
-	std::string varianceYCodeAB;
-
-	int varianceZCodeA;
-	int varianceZCodeB;
-	std::string varianceZCodeAB;
-
 	VoxelVectorPtr voxelsA;
 	VoxelVectorPtr voxelsB;
 	int pointACount;
 	int pointBCount;
 
-	pcl::PointXYZRGBA centroidA;
-	pcl::PointXYZRGBA centroidB;
-
+    Eigen::Matrix3f covariance;
+    Eigen::Vector4f centroid;
 	Eigen::Vector3f normal;
 };
 

@@ -231,7 +231,7 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 
 	for (leafVoxelItr = leafVoxelMap.begin(); leafVoxelItr != leafVoxelMap.end(); ++leafVoxelItr, ++centroidCloudCounter) {
 
-		SupervoxelClusteringT::LeafContainerT* leaf = leafVoxelItr->first;
+//		SupervoxelClusteringT::LeafContainerT* leaf = leafVoxelItr->first;
 		VData::Ptr voxel = leafVoxelItr->second;
 
 		// compute Centroid
@@ -330,7 +330,7 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 	leafVoxelMap.clear();
 
 	cout<<"Finding supervoxel normals " << endl;
-	// calculating supervoxel normal
+	// calculating supervoxel normal, centroid and covariance
 	SVMap::iterator svItr;
 	for (svItr = supervoxelMap.begin(); svItr != supervoxelMap.end(); ++svItr) {
 
@@ -339,37 +339,26 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 		SData::VoxelVectorPtr voxels = supervoxel->getVoxelAVector();
 
 		Eigen::Vector3f supervoxelNormal = Eigen::Vector3f::Zero();
-		PointT supervoxelCentroid;
+        Eigen::Vector4f supervoxelCentroid = Eigen::Vector4f::Identity();
+        Eigen::Matrix3f supervoxelCovariance = Eigen::Matrix3f::Zero();
+        
+        VData::ScanIndexVector supervoxelScanIndices; // needed for supervoxel centroid
 
-		double x(0), y(0), z(0), r(0), g(0), b(0);
-		typename SData::VoxelVector::iterator voxelItr = voxels->begin();
-		for (; voxelItr != voxels->end(); ++voxelItr) {
-
+		typename SData::VoxelVector::iterator voxelItr;
+		for (voxelItr = voxels->begin(); voxelItr != voxels->end(); ++voxelItr) {
+            VData::ScanIndexVectorPtr voxelIndices = (*voxelItr)->getIndexVector();
+            supervoxelScanIndices.insert(supervoxelScanIndices.begin(), voxelIndices->begin(), voxelIndices->end());
+            
 			int voxelSize = (*voxelItr)->getIndexVector()->size();
 			supervoxelPointCount += voxelSize;
-
 			supervoxelNormal += (*voxelItr)->getNormal();
-			PointT p = (*voxelItr)->getCentroid();
-			x += p.x;
-			y += p.y;
-			z += p.z;
-			r += p.r;
-			g += p.g;
-			b += p.b;
 		}
 
-		int voxelSize = voxels->size();
-		if (voxelSize != 0) {
-			supervoxelCentroid.x = x/voxelSize;
-			supervoxelCentroid.y = y/voxelSize;
-			supervoxelCentroid.z = z/voxelSize;
-			supervoxelCentroid.r = r/voxelSize;
-			supervoxelCentroid.g = g/voxelSize;
-			supervoxelCentroid.b = b/voxelSize;
-
-			supervoxel->setCentroidA(supervoxelCentroid);
-		}
-
+        pcl::compute3DCentroid(*A, supervoxelScanIndices, supervoxelCentroid);
+        pcl::computeCovarianceMatrix(*A, supervoxelScanIndices, supervoxelCentroid, supervoxelCovariance);
+        
+        supervoxel->setCovariance(supervoxelCovariance);
+        supervoxel->setCentroid(supervoxelCentroid);
 		supervoxel->setPointACount(supervoxelPointCount);
 
 		if (!supervoxelNormal.isZero()) {
@@ -378,6 +367,11 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 		}
 
 	}
+    
+    // Covariance and mean calculated
+    // Calculate c1 and c2 for each supervoxel
+    
+    
 }
 
 void
@@ -617,14 +611,15 @@ SupervoxelRegistration::calculateSupervoxelScanBData() {
 		SData::Ptr supervoxel = svItr->second;
 		SData::VoxelVectorPtr voxels = supervoxel->getVoxelBVector();
 
-		PointT supervoxelCentroid;
-
-		double x(0), y(0), z(0), r(0), g(0), b(0);
-
+        Eigen::Vector4f supervoxelCentroid;
+        VData::ScanIndexVector supervoxelScanIndices;
+        
 		for (voxelItr = voxels->begin(); voxelItr != voxels->end(); ++voxelItr) {
 
 			VData::Ptr voxel = *voxelItr;
 			typename VData::ScanIndexVectorPtr indexVector = voxel->getIndexVector();
+            
+            supervoxelScanIndices.insert(supervoxelScanIndices.end(), indexVector -> begin(), indexVector -> end());
 			PointT voxelCentroid;
 
 			double xv(0), yv(0), zv(0), rv(0), gv(0), bv(0);
@@ -655,25 +650,7 @@ SupervoxelRegistration::calculateSupervoxelScanBData() {
 
 			supervoxelPointCount += numberOfPoints;
 
-			PointT p = (*voxelItr)->getCentroid();
-			x += p.x;
-			y += p.y;
-			z += p.z;
-			r += p.r;
-			g += p.g;
-			b += p.b;
-		}
-
-		int voxelsSize = voxels->size();
-		if (voxelsSize != 0) {
-			supervoxelCentroid.x = x/voxelsSize;
-			supervoxelCentroid.y = y/voxelsSize;
-			supervoxelCentroid.z = z/voxelsSize;
-			supervoxelCentroid.r = r/voxelsSize;
-			supervoxelCentroid.g = g/voxelsSize;
-			supervoxelCentroid.b = b/voxelsSize;
-
-			supervoxel->setCentroidB(supervoxelCentroid);
+			
 		}
 
 		supervoxel->setPointBCount(supervoxelPointCount);
@@ -686,8 +663,7 @@ SupervoxelRegistration::createKDTreeForSupervoxels() {
 	PointCloudXYZ::Ptr svLabelCloud = boost::shared_ptr<PointCloudXYZ>(new PointCloudXYZ());
 
 	SVMap::iterator svItr;
-
-	PointT supervoxelCentroid;
+	
 	pcl::PointXYZ treePoint;
 
 	for (svItr = supervoxelMap.begin(); svItr != supervoxelMap.end(); ++svItr) {
@@ -695,7 +671,12 @@ SupervoxelRegistration::createKDTreeForSupervoxels() {
 		SData::Ptr supervoxel = svItr->second;
 		int label = svItr->first;
 
-		supervoxelCentroid = supervoxel->getCentroidA();
+        Eigen::Vector4f centroid = supervoxel->getCentroid();
+
+        PointT supervoxelCentroid;
+        supervoxelCentroid.x = centroid[0];
+        supervoxelCentroid.y = centroid[1];
+        supervoxelCentroid.z = centroid[2];
 
 		treePoint.x = supervoxelCentroid.x;
 		treePoint.y = supervoxelCentroid.y;
@@ -1029,4 +1010,10 @@ SupervoxelRegistration::showTestSuperVoxel(int supevoxelLabel) {
 
 	showPointCloud(newCloud);
 }
+
+
+
+
+
+
 
