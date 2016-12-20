@@ -222,13 +222,29 @@ template<typename PointT, typename LeafContainerT, typename BranchContainerT> vo
 pcl::octree::OctreePointCloudAdjacency<PointT, LeafContainerT, BranchContainerT>::getLeafBounds(
 		const PointT& point_arg, float& ax, float& bx, float& ay, float& by, float& az, float& bz) {
 
-	ax = static_cast<unsigned int> ((point_arg.x - this->min_x_) / this->resolution_);
-	ay = static_cast<unsigned int> ((point_arg.y - this->min_y_) / this->resolution_);
-	az = static_cast<unsigned int> ((point_arg.z - this->min_z_) / this->resolution_);
+	int keyx(0), keyy(0), keyz(0);
 
-	bx = ax + this->resolution_;
-	by = ay + this->resolution_;
-	bz = az + this->resolution_;
+	keyx = point_arg.x / this->resolution_;
+	ax = keyx * this->resolution_;
+	if (ax < 0) {
+		bx = ax - 1;
+	} else {
+		bx = ax + 1;
+	}
+
+	keyy = point_arg.y / this->resolution_;
+	ay = keyy * this->resolution_;
+	if (ay < 0)
+		by = ay - 1;
+	else
+		by = ay + 1;
+
+	keyz = point_arg.z / this->resolution_;
+	az = keyz * this->resolution_;
+	if (az < 0)
+		bz = az - 1;
+	else
+		bz = az + 1;
 
 }
 

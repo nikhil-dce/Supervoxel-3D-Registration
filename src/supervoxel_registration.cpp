@@ -330,9 +330,11 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 	cout<<"Finding supervoxel normals " << endl;
 	// calculating supervoxel normal, centroid and covariance
 	SVMap::iterator svItr;
+	std::vector<int> labelsToRemove;
 	for (svItr = supervoxelMap.begin(); svItr != supervoxelMap.end(); ++svItr) {
 
 		int supervoxelPointCount = 0;
+		int svLabel = svItr->first;
 		SData::Ptr supervoxel = svItr->second;
 		SData::VoxelVectorPtr voxels = supervoxel->getVoxelAVector();
 
@@ -352,20 +354,49 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 			supervoxelNormal += (*voxelItr)->getNormal();
 		}
 
-        pcl::compute3DCentroid(*A, supervoxelScanIndices, supervoxelCentroid);
-        pcl::computeCovarianceMatrix(*A, supervoxelScanIndices, supervoxelCentroid, supervoxelCovariance);
-        
-        supervoxel->setCovariance(supervoxelCovariance);
-        supervoxel->setCentroid(supervoxelCentroid);
-		supervoxel->setPointACount(supervoxelPointCount);
+		if (supervoxelPointCount >= MIN_POINTS_IN_SUPERVOXEL) {
 
-		if (!supervoxelNormal.isZero()) {
-			supervoxelNormal.normalize();
-			supervoxel->setNormal(supervoxelNormal);
+			pcl::compute3DCentroid(*A, supervoxelScanIndices, supervoxelCentroid);
+			pcl::computeCovarianceMatrix(*A, supervoxelScanIndices, supervoxelCentroid, supervoxelCovariance);
+
+			Eigen::JacobiSVD<Eigen::Matrix3f> svd (supervoxelCovariance, Eigen::ComputeFullU | Eigen::ComputeFullV);
+
+			Eigen::VectorXf singularValues = svd.singularValues();
+			Eigen::MatrixXf U = svd.matrixU();
+			Eigen::MatrixXf V = svd.matrixV();
+
+			if (singularValues(1) < singularValues(0) / 10) {
+				singularValues(1) = singularValues(0) / 10;
+				singularValues(2) = singularValues(0) / 10;
+			} else if (singularValues(2) < singularValues(0) / 10) {
+				singularValues(2) = singularValues(0) / 10;
+			}
+
+			Eigen::MatrixXf S = singularValues.asDiagonal();
+			supervoxelCovariance = U * singularValues.asDiagonal() * V.transpose();
+
+			supervoxel->setCovariance(supervoxelCovariance);
+			supervoxel->setCentroid(supervoxelCentroid);
+			supervoxel->setPointACount(supervoxelPointCount);
+
+			if (!supervoxelNormal.isZero()) {
+				supervoxelNormal.normalize();
+				supervoxel->setNormal(supervoxelNormal);
+			}
+
+		} else {
+			labelsToRemove.push_back(svLabel);
 		}
-        
+
 	}
     
+	// Remove labels in labelsToRemove
+	std::vector<int>::iterator itr = labelsToRemove.begin();
+	for (; itr != labelsToRemove.end(); itr ++) {
+		supervoxelMap.erase(*itr);
+	}
+
+
     // Covariance and mean calculated
     
     
@@ -375,27 +406,26 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
     // TotalSupervoxelProbability has mass 1
     
     for (svItr = supervoxelMap.begin(); svItr != supervoxelMap.end(); ++svItr) {
-        
+
+    	int svLabel = svItr->first;
         SData::Ptr supervoxel = svItr->second;
         SData::VoxelVectorPtr voxels = supervoxel->getVoxelAVector();
-        
+
         Eigen::Vector4f supervoxelCentroid = supervoxel->getCentroid();
         Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
-        
+
         double outlierPro = PROBABILITY_OUTLIERS_SUPERVOXEL;
         double probabilityOutliers =  voxels->size() * svr_util::cube<float>(vr) * outlierPro; // Epsilon2
         double totalProbabilityFromND = 0.0f; // Epsilon1
         double epsilon1(0), epsilon2(0);
-        
+
         typename SData::VoxelVector::iterator voxelItr;
         for (voxelItr = voxels->begin(); voxelItr != voxels->end(); ++voxelItr) {
-    
+
         	VData::Ptr voxel = (*voxelItr);
             float ax, bx, ay, by, az, bz;
-            
-            adjTree->getLeafBounds(voxel->getCentroid(), ax, bx, ay, by, az, bz); // using centroid, any point should work
 
-            cout << "ax: " << ax << " bx: " << bx << " ay: " << ay << " by: " << by << " az: " << az << " bz: " << bz << endl;
+            adjTree->getLeafBounds(voxel->getCentroid(), ax, bx, ay, by, az, bz); // using centroid, any point should work
             totalProbabilityFromND += svr_util::calculateApproximateIntegralForVoxel(ax, bx, ay, by, az, bz, supervoxelCovariance, supervoxelCentroid);
         }
 
@@ -403,9 +433,15 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
         epsilon1 = (1-probabilityOutliers) / totalProbabilityFromND;
         epsilon2 = 1-epsilon1;
 
-        cout << "Epsilon 1: " << epsilon1 << endl;
-        cout << "Epsilon 2: " << epsilon2 << endl;
-        
+        supervoxel->setEpsilon1(epsilon1);
+        supervoxel->setEpsilon2(epsilon2);
+
+        if (epsilon1 > 1 || epsilon2 > 1) {
+        	cout << "Supervoxel Label: " << svLabel << " Points: " << supervoxel->getPointACount() <<  " Voxels: " << voxels->size() << endl;
+        	cout << "Epsilon 1: " << epsilon1 << endl;
+        	cout << "Epsilon 2: " << epsilon2 << endl;
+        }
+
     }
     
 }

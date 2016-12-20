@@ -182,9 +182,27 @@ public:
 		
 	}
 
+	double getEpsilon1() const {
+		return epsilon1;
+	}
+
+	void setEpsilon1(double epsilon1) {
+		this->epsilon1 = epsilon1;
+	}
+
+	double getEpsilon2() const {
+		return epsilon2;
+	}
+
+	void setEpsilon2(double epsilon2) {
+		this->epsilon2 = epsilon2;
+	}
+
 private:
 
 	int label;
+	double epsilon1;
+	double epsilon2;
 
 	VoxelVectorPtr voxelsA;
 	VoxelVectorPtr voxelsB;

@@ -1,5 +1,5 @@
 #define NORMAL_3D_CONSTANT 0.063493636
-#define INTEGRAL_STEP 0.5
+#define INTEGRAL_STEP 0.2
 
 namespace svr_util {
 
@@ -41,8 +41,6 @@ transform_get_rotation(Eigen::Matrix4d t, double *x, double *y, double *z) {
     
 double calculateNormalProbabilityForPoint(float x, float y, float z, Eigen::Matrix3f covariance, Eigen::Vector4f mean) {
     
-    std::cout << x << ' ' << y << ' ' << z << std::endl;
-    
     double probability;
     
     Eigen::Vector3f X;
@@ -52,32 +50,20 @@ double calculateNormalProbabilityForPoint(float x, float y, float z, Eigen::Matr
     U << mean(0), mean(1), mean(2);
     
     float power = (X-U).transpose() * covariance.inverse() * (X-U);
-    
-    std::cout << "Power: " << power << std::endl;
 
     float constant = NORMAL_3D_CONSTANT;
     probability = constant * exp(-1 * power / 2) / sqrt(covariance.determinant());
 
-    std::cout << "Probability: " << probability << std::endl;
-    
     return probability;
 }
 
 double calculateApproximateIntegralForVoxel(float ax, float bx, float ay, float by, float az, float bz, Eigen::Matrix3f covariance, Eigen::Vector4f mean) {
 
+	if (covariance.determinant() == 0)
+		return 0;
+
     double integral = 0;
     double delta = INTEGRAL_STEP;
-
-    std::cout << "ax: " << ax << " ay: " << ay << " az: " << az << std::endl;
-
-    std::cout << "Covariance: " << std::endl;
-    std::cout << covariance;
-    std::cout << std::endl;
-
-    std::cout << "Mean: " << std::endl;
-    std::cout << mean;
-    std::cout << std::endl;
-
     // bx - ax = by - ay = bz - az => Voxel Resolution
     
     int m = fabs ( (bx-ax) / delta);
@@ -126,7 +112,6 @@ double calculateApproximateIntegralForVoxel(float ax, float bx, float ay, float 
         }
     }
     
-    std::cout << "Integral -> " << integral << std::endl;
     return integral;
 }
     
