@@ -147,6 +147,7 @@ main (int argc, char *argv[]) {
 	temp->clear();
 
 	svr::SupervoxelRegistration supervoxelRegistration (programOptions.vr, programOptions.sr);
+	supervoxelRegistration.setDebug(true);
 	supervoxelRegistration.setScans(scanA, scanB);
 
 	if (programOptions.test != 0 || programOptions.showScans) {

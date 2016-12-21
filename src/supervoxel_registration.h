@@ -72,6 +72,11 @@ public:
 	void
 	alignScans();
 
+	void
+	setDebug(bool d) {
+		debug = d;
+	}
+
 protected:
 
 	std::map <uint32_t, pcl::Supervoxel<PointT>::Ptr>
@@ -81,7 +86,7 @@ protected:
 	createSuperVoxelMappingForScan1 ();
 
 	void
-	createSuperVoxelMappingForScan2 ();
+	createSuperVoxelMappingForScan2 (PointCloudT::Ptr transformedScan2);
 
 	void
 	calculateSupervoxelScanBData();
@@ -114,6 +119,7 @@ private:
 		file.close();
 	}
 
+	bool debug;
 	SupervoxelClusteringT supervoxelClustering;
 	SVMap supervoxelMap;
 	LabeledLeafMapT leafMapping;

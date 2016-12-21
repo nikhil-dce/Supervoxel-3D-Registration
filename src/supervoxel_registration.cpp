@@ -38,6 +38,7 @@ SupervoxelRegistration::SupervoxelRegistration(float voxelR, float seedR):
 	octree_bounds_()
 {
 
+	debug = false;
 	octree_bounds_.minPt.x = -120;
 	octree_bounds_.minPt.y = -120;
 	octree_bounds_.minPt.z = -20;
@@ -88,7 +89,9 @@ SupervoxelRegistration::alignScans() {
 		// transform point cloud using trans_last
 
 		transformPointCloud (*B, *transformedScan2, trans_last);
-		createSuperVoxelMappingForScan2();
+		createSuperVoxelMappingForScan2(transformedScan2);
+
+		printSupervoxelMap();
 
 		cout << "Iteration " << iteration+1 << " ..." << endl;
 
@@ -461,13 +464,13 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 }
 
 void
-SupervoxelRegistration::createSuperVoxelMappingForScan2 () {
+SupervoxelRegistration::createSuperVoxelMappingForScan2 (PointCloudT::Ptr transformedB) {
 
 	AdjacencyOctreeT adjTree1 = supervoxelClustering.getOctreeeAdjacency();
 
 	AdjacencyOctreeT adjTree2;
 	adjTree2.reset (new typename SupervoxelClusteringT::OctreeAdjacencyT(vr));
-	adjTree2->setInputCloud(B);
+	adjTree2->setInputCloud(transformedB);
 	adjTree2->customBoundingBox(octree_bounds_.minPt.x, octree_bounds_.minPt.y, octree_bounds_.minPt.z,
 			octree_bounds_.maxPt.x, octree_bounds_.maxPt.y, octree_bounds_.maxPt.z);
 	adjTree2->addPointsFromInputCloud();
@@ -487,7 +490,7 @@ SupervoxelRegistration::createSuperVoxelMappingForScan2 () {
 
 	LeafVoxelMapT leafVoxelMap;
 
-	for (scanItr = B->begin(); scanItr != B->end(); ++scanItr, ++scanCounter) {
+	for (scanItr = transformedB->begin(); scanItr != transformedB->end(); ++scanItr, ++scanCounter) {
 
 		PointT a = (*scanItr);
 
@@ -528,7 +531,7 @@ SupervoxelRegistration::createSuperVoxelMappingForScan2 () {
 		PointT centroid;
 		double x(0), y(0), z(0), r(0), g(0), b(0);
 		for (indexItr = scanIndexVector->begin(); indexItr != scanIndexVector->end(); ++indexItr) {
-			PointT p = B->at(*indexItr);
+			PointT p = transformedB->at(*indexItr);
 			x += p.x;
 			y += p.y;
 			z += p.z;
@@ -681,6 +684,11 @@ SupervoxelRegistration::createSuperVoxelMappingForScan2 () {
 
 	// end supervoxel iteration
 	leafVoxelMap.clear();
+
+	if (debug) {
+		calculateSupervoxelScanBData();
+	}
+
 }
 
 void
@@ -697,46 +705,11 @@ SupervoxelRegistration::calculateSupervoxelScanBData() {
 		SData::Ptr supervoxel = svItr->second;
 		SData::VoxelVectorPtr voxels = supervoxel->getVoxelBVector();
 
-        Eigen::Vector4f supervoxelCentroid;
-        VData::ScanIndexVector supervoxelScanIndices;
-        
 		for (voxelItr = voxels->begin(); voxelItr != voxels->end(); ++voxelItr) {
-
 			VData::Ptr voxel = *voxelItr;
 			typename VData::ScanIndexVectorPtr indexVector = voxel->getIndexVector();
-            
-            supervoxelScanIndices.insert(supervoxelScanIndices.end(), indexVector -> begin(), indexVector -> end());
-			PointT voxelCentroid;
-
-			double xv(0), yv(0), zv(0), rv(0), gv(0), bv(0);
-			for (indexItr = indexVector->begin(); indexItr != indexVector->end(); ++indexItr) {
-				PointT pv = B->at(*indexItr);
-
-				xv += pv.x;
-				yv += pv.y;
-				zv += pv.z;
-				rv += pv.r;
-				gv += pv.g;
-				bv += pv.b;
-
-			}
-
 			int numberOfPoints = indexVector->size();
-
-			if (numberOfPoints != 0) {
-				voxelCentroid.x = xv/numberOfPoints;
-				voxelCentroid.y = yv/numberOfPoints;
-				voxelCentroid.z = zv/numberOfPoints;
-				voxelCentroid.r = rv/numberOfPoints;
-				voxelCentroid.g = gv/numberOfPoints;
-				voxelCentroid.b = bv/numberOfPoints;
-
-				voxel->setCentroid(voxelCentroid);
-			}
-
 			supervoxelPointCount += numberOfPoints;
-
-			
 		}
 
 		supervoxel->setPointBCount(supervoxelPointCount);
@@ -831,7 +804,7 @@ SupervoxelRegistration::showTestSuperVoxel(int supevoxelLabel) {
 
 	createSuperVoxelMappingForScan1();
 	createKDTreeForSupervoxels();
-	createSuperVoxelMappingForScan2();
+	createSuperVoxelMappingForScan2(B);
 
 	// Display all supervoxels with count A and count B
 

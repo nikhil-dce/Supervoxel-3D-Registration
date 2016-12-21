@@ -33,9 +33,12 @@ double inline computePointFCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Mat
 
 	double c;
 
-	double d3 = -log(epsilon2);
-	double d1 = -log(epsilon1 + epsilon2) -d3;
-	double d2 = -2 * log( (-log(epsilon1 * NSQRT_EXP + epsilon2) - d3) / d1);
+	double c2 = epsilon2 * PROBABILITY_OUTLIERS_SUPERVOXEL;
+	double c1 = epsilon1;
+
+	double d3 = -log(c2);
+	double d1 = -log(c1 + c2) -d3;
+	double d2 = -2 * log( (-log(c1 * NSQRT_EXP + c2) - d3) / d1);
 
 	Eigen::Vector3f X;
 	X << p.x, p.y, p.z;
@@ -99,21 +102,11 @@ double f (const gsl_vector *pose, void* params) {
 	pitch = gsl_vector_get(pose, 4);
 	yaw = gsl_vector_get(pose, 5);
 
-	cout << "Pose Test: " << endl;
-	cout << gsl_vector_get(pose, 0) << endl;
-	cout << gsl_vector_get(pose, 1) << endl;
-	cout << gsl_vector_get(pose, 2) << endl;
-	cout << gsl_vector_get(pose, 3) << endl;
-	cout << gsl_vector_get(pose, 4) << endl;
-	cout << gsl_vector_get(pose, 5) << endl;
-
-
 	svr_opti_data* optiData = (svr_opti_data*) params;
 
 	svr::PointCloudT::Ptr scan1 = optiData->scan1;
 	svr::PointCloudT::Ptr scan2 = optiData->scan2;
 	svr::PointCloudT::Ptr transformedScan2 =  boost::shared_ptr<svr::PointCloudT>(new svr::PointCloudT());
-
 	svr::SVMap* SVMapping = optiData->svMap;
 
 	// Create Transformation
@@ -133,15 +126,17 @@ double f (const gsl_vector *pose, void* params) {
 		cost += computeSupervoxelFCost(supervoxel, transformedScan2);
 	}
 
-	std::cout << "f: " << cost << std::endl;
 	return -cost;
 }
 
 void inline computePointDfCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Matrix3f covariance, double epsilon1, double epsilon2, const gsl_vector* pose, gsl_vector* df) {
 
-	double d3 = -log(epsilon2);
-	double d1 = -log(epsilon1 + epsilon2) -d3;
-	double d2 = -2 * log( (-log(epsilon1 * NSQRT_EXP + epsilon2) - d3) / d1);
+	double c2 = epsilon2 * PROBABILITY_OUTLIERS_SUPERVOXEL;
+	double c1 = epsilon1;
+
+	double d3 = -log(c2);
+	double d1 = -log(c1 + c2) -d3;
+	double d2 = -2 * log( (-log(c1 * NSQRT_EXP + c2) - d3) / d1);
 
 	Eigen::Matrix3f covarianceInv = covariance.inverse();
 
@@ -166,14 +161,14 @@ void inline computePointDfCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Matr
 	double cz = cos(yaw);
 	double sz = sin(yaw);
 
-	double a = X(0) * (-sx*sz + cx*sy*cz) + X(1) * (-sx*cz - cx*sy*sz) + X(2) * (-cx*cy);
-	double b = X(0) * (cx*sz + sx*sy*cz) + X(1) * (-sx*sy*sz + cx*cz) + X(2) * (-sx*cy);
-	double c = X(0) * (-sy*cz) + X(1) * (sy*sz) + X(2) * cy;
-	double d = X(0) * (sx*cy*cz) + X(1) * (-sx*cy*sz) + X(2) * (sx*sy);
-	double e = X(0) * (-cx*cy*cz) + X(1) * (cx*cy*sz) + X(2) * (-cx*sy);
-	double f = X(0) * (-cy*sz) + X(1) * (-cy*cz);
-	double g = X(0) * (cx*cz - sx*sy*sz) + X(1) * (-cx*sz - sx*sy*cz);
-	double h = X(0) * (sx*cz + cx*sy*sz) + X(1) * (cx*sy*cz - sx*sz);
+	double a = (X(0) - U(0)) * (-sx*sz + cx*sy*cz) + (X(1) - U(1)) * (-sx*cz - cx*sy*sz) + (X(2) - U(2)) * (-cx*cy);
+	double b = (X(0) - U(0)) * (cx*sz + sx*sy*cz) + (X(1) - U(1)) * (-sx*sy*sz + cx*cz) + (X(2) - U(2)) * (-sx*cy);
+	double c = (X(0) - U(0)) * (-sy*cz) + (X(1) - U(1)) * (sy*sz) + (X(2) - U(2)) * cy;
+	double d = (X(0) - U(0)) * (sx*cy*cz) + (X(1) - U(1)) * (-sx*cy*sz) + (X(2) - U(2)) * (sx*sy);
+	double e = (X(0) - U(0)) * (-cx*cy*cz) + (X(1) - U(1)) * (cx*cy*sz) + (X(2) - U(2)) * (-cx*sy);
+	double f = (X(0) - U(0)) * (-cy*sz) + (X(1) - U(1)) * (-cy*cz);
+	double g = (X(0) - U(0)) * (cx*cz - sx*sy*sz) + (X(1) - U(1)) * (-cx*sz - sx*sy*cz);
+	double h = (X(0)- U(0)) * (sx*cz + cx*sy*sz) + (X(1) - U(1)) * (cx*sy*cz - sx*sz);
 
 	Eigen::MatrixXf Jacobian (3,6);
 	Jacobian << 1,0,0,0,c,f,
@@ -270,19 +265,10 @@ void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 		computeSupervoxelDfCost(supervoxel, transformedScan2, pose, df);
 	}
 
-//	std::cout << "df: " << std::endl;
-//	std::cout << gsl_vector_get(df, 0) << std::endl;
-//	std::cout << gsl_vector_get(df, 1) << std::endl;
-//	std::cout << gsl_vector_get(df, 2) << std::endl;
-//	std::cout << gsl_vector_get(df, 3) << std::endl;
-//	std::cout << gsl_vector_get(df, 4) << std::endl;
-//	std::cout << gsl_vector_get(df, 5) << std::endl;
 }
 
 
 void fdf (const gsl_vector *pose, void *params, double *fCost, gsl_vector *df) {
-
-	std::cout << "fdf" << std::endl;
 
 	gsl_vector_set_zero(df);
 
@@ -308,15 +294,6 @@ void fdf (const gsl_vector *pose, void *params, double *fCost, gsl_vector *df) {
 	transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
 	transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 	transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
-
-//	cout << transform.matrix() << endl;
-
-//	Eigen::Matrix3f nmat;
-//	nmat = Eigen::AngleAxisf(roll, Eigen::Vector3f::UnitX())
-//	    		   * Eigen::AngleAxisf(pitch, Eigen::Vector3f::UnitY())
-//	    		   * Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitZ());
-//
-//	cout << "M: " << endl << nmat << endl;
 
 	// Transform point cloud
 	pcl::transformPointCloud(*scan2, *transformedScan2, transform);
