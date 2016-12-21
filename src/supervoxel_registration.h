@@ -16,9 +16,9 @@
 #define NORM_DZ 0.1
 
 // Min points to be present in supevoxel for MI consideration
-#define MIN_POINTS_IN_SUPERVOXEL 5
+#define MIN_POINTS_IN_SUPERVOXEL 20
 
-#define PROBABILITY_OUTLIERS_SUPERVOXEL 0.3
+#define PROBABILITY_OUTLIERS_SUPERVOXEL 0.35
 
 namespace svr {
 

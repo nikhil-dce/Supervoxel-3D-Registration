@@ -11,6 +11,8 @@
 #define svr_optimize_h
 
 #include "supervoxel_registration.h"
+#include "supervoxel_util.hpp"
+
 #include <gsl/gsl_multimin.h>
 #include <pcl/common/transforms.h>
 
@@ -20,11 +22,10 @@
 namespace svr_optimize {
 
 struct svr_opti_data {
-
 	svr::SVMap* svMap;
 	svr::PointCloudT::Ptr scan1;
 	svr::PointCloudT::Ptr scan2;
-
+	Eigen::Affine3d t;
 };
 
 // Magnusson
@@ -55,6 +56,7 @@ double computeSupervoxelFCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan)
 
 	double epsilon1 = supervoxel->getEpsilon1();
 	double epsilon2 = supervoxel->getEpsilon2();
+
 	Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
 	Eigen::Vector4f supervoxelMean = supervoxel->getCentroid();
 
@@ -76,10 +78,19 @@ double computeSupervoxelFCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan)
 
 	}
 
+	if (cost < 0 || epsilon1 <= 0 || epsilon2 <= 0) {
+		cout << " Points in A " << supervoxel->getPointACount() << endl;
+		cout << " Label: " << supervoxel->getLabel() << endl;
+		cout << " Cost: " << cost << endl;
+		cout << " Covariance: " << endl << supervoxelCovariance << endl;
+		cout << " Epsilons: " << epsilon1 << ' ' << epsilon2 << endl;
+	}
 	return cost;
 }
 
 double f (const gsl_vector *pose, void* params) {
+
+	std::cout << "f" << std::endl;
 
 	// Initialize All Data
 	double x, y, z, roll, pitch ,yaw;
@@ -115,6 +126,7 @@ double f (const gsl_vector *pose, void* params) {
 		cost += computeSupervoxelFCost(supervoxel, transformedScan2);
 	}
 
+	std::cout << "f: " << cost << std::endl;
 	return -cost;
 }
 
@@ -213,7 +225,6 @@ void computeSupervoxelDfCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, 
 	}
 }
 
-
 // Magnusson
 void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 
@@ -257,10 +268,14 @@ void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 		computeSupervoxelDfCost(supervoxel, transformedScan2, pose, df);
 	}
 
+//	std::cout << "df: " << std::endl << df << std::endl;
+
 }
 
 
 void fdf (const gsl_vector *pose, void *params, double *f, gsl_vector *df) {
+
+	std::cout << "fdf" << std::endl;
 
 	gsl_vector_set (df, 0, 0);
 	gsl_vector_set (df, 1, 0);
@@ -312,6 +327,12 @@ optimize(svr_opti_data opt_data) {
 
 	const gsl_multimin_fdfminimizer_type *T = gsl_multimin_fdfminimizer_vector_bfgs2;
 	gsl_multimin_fdfminimizer *gsl_minimizer = NULL;
+	Eigen::Affine3d last_transform = opt_data.t;
+
+	double x,y,z,roll,pitch,yaw;
+
+	svr_util::transform_get_translation_from_affine(last_transform, &x, &y, &z);
+	svr_util::transform_get_rotation_from_affine(last_transform, &roll, &pitch, &yaw);
 
 	gsl_vector *baseX;
 
@@ -333,16 +354,17 @@ optimize(svr_opti_data opt_data) {
 	int status;
 
 	baseX = gsl_vector_alloc (6);
-	gsl_vector_set (baseX, 0, 0);
-	gsl_vector_set (baseX, 1, 0);
-	gsl_vector_set (baseX, 2, 0);
-	gsl_vector_set (baseX, 3, 0);
-	gsl_vector_set (baseX, 4, 0);
-	gsl_vector_set (baseX, 5, 0);
+	gsl_vector_set (baseX, 0, x);
+	gsl_vector_set (baseX, 1, y);
+	gsl_vector_set (baseX, 2, z);
+	gsl_vector_set (baseX, 3, roll);
+	gsl_vector_set (baseX, 4, pitch);
+	gsl_vector_set (baseX, 5, yaw);
 
 	gsl_minimizer = gsl_multimin_fdfminimizer_alloc (T, N_DIMEN);
 	gsl_multimin_fdfminimizer_set (gsl_minimizer, &function, baseX, step_size, line_search_tol);
 
+	status = GSL_CONTINUE;
 	while (status == GSL_CONTINUE && iter < max_iter) {
 
 		iter++;

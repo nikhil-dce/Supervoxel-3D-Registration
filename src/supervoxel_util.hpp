@@ -1,3 +1,6 @@
+#ifndef svr_util_hpp
+#define svr_util_hpp
+
 #define NORMAL_3D_CONSTANT 0.063493636
 #define INTEGRAL_STEP 0.2
 
@@ -16,7 +19,7 @@ inline Type cube(Type x)
 }
     
 void
-transform_get_translation(Eigen::Matrix4d t, double *x, double *y, double *z) {
+transform_get_translation_from_affine(Eigen::Affine3d& t, double *x, double *y, double *z) {
 
 	*x = t(0,3);
 	*y = t(1,3);
@@ -25,7 +28,7 @@ transform_get_translation(Eigen::Matrix4d t, double *x, double *y, double *z) {
 }
 
 void
-transform_get_rotation(Eigen::Matrix4d t, double *x, double *y, double *z) {
+transform_get_rotation_from_affine(Eigen::Affine3d& t, double *x, double *y, double *z) {
 
 	double a = t(2,1);
 	double b = t(2,2);
@@ -116,7 +119,7 @@ double calculateApproximateIntegralForVoxel(float ax, float bx, float ay, float 
 }
     
 }
-
+#endif /* svr_util_hpp */
 
 
 

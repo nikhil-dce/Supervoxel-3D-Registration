@@ -96,6 +96,8 @@ SupervoxelRegistration::alignScans() {
 		opti_data.scan1 = A;
 		opti_data.scan2 = B;
 		opti_data.svMap = &supervoxelMap;
+		opti_data.t = trans_last;
+
 		trans_new = optimize(opti_data);
 
 		/* compute the delta from this iteration */
@@ -440,6 +442,14 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 
         supervoxel->setEpsilon1(epsilon1);
         supervoxel->setEpsilon2(epsilon2);
+
+        if (svLabel == 515 || svLabel == 487 || svLabel == 536) {
+
+        	cout << "Label: " << svLabel << endl;
+        	cout << "Covariance: " << endl << supervoxelCovariance << endl;
+        	cout << "Mean: " << endl << supervoxelCentroid << endl;
+
+        }
 
         if (epsilon1 > 1 || epsilon2 > 1) {
         	cout << "Supervoxel Label: " << svLabel << " Points: " << supervoxel->getPointACount() <<  " Voxels: " << voxels->size() << endl;
