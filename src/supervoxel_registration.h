@@ -3,6 +3,7 @@
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <fstream>
 #include "supervoxel_cluster_search.h"
 #include "supervoxel_mapping.hpp"
 
@@ -92,6 +93,26 @@ protected:
 	prepareForRegistration();
 
 private:
+
+	void printSupervoxelMap() {
+
+		std::string filename("Supervoxel Map ");
+		std::ofstream file(filename.c_str());
+
+		SVMap::iterator svItr;
+		for (svItr = supervoxelMap.begin(); svItr != supervoxelMap.end(); ++svItr) {
+
+			SData::Ptr supervoxel = svItr->second;
+			file << "Label: " <<  supervoxel->getLabel() << std::endl;
+			file << "A: " << supervoxel->getPointACount() << std::endl;
+			file << "B: " << supervoxel->getPointBCount() << std::endl;
+			file << "Covariance: " << std::endl; file << supervoxel->getCovariance() << std::endl;
+			file << "Epsilons: " << supervoxel->getEpsilon1() << ' ' << supervoxel->getEpsilon2() << std::endl;
+
+		}
+
+		file.close();
+	}
 
 	SupervoxelClusteringT supervoxelClustering;
 	SVMap supervoxelMap;

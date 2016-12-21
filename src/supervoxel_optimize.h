@@ -90,8 +90,6 @@ double computeSupervoxelFCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan)
 
 double f (const gsl_vector *pose, void* params) {
 
-	std::cout << "f" << std::endl;
-
 	// Initialize All Data
 	double x, y, z, roll, pitch ,yaw;
 	x = gsl_vector_get(pose, 0);
@@ -100,6 +98,15 @@ double f (const gsl_vector *pose, void* params) {
 	roll = gsl_vector_get(pose, 3);
 	pitch = gsl_vector_get(pose, 4);
 	yaw = gsl_vector_get(pose, 5);
+
+	cout << "Pose Test: " << endl;
+	cout << gsl_vector_get(pose, 0) << endl;
+	cout << gsl_vector_get(pose, 1) << endl;
+	cout << gsl_vector_get(pose, 2) << endl;
+	cout << gsl_vector_get(pose, 3) << endl;
+	cout << gsl_vector_get(pose, 4) << endl;
+	cout << gsl_vector_get(pose, 5) << endl;
+
 
 	svr_opti_data* optiData = (svr_opti_data*) params;
 
@@ -228,12 +235,7 @@ void computeSupervoxelDfCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, 
 // Magnusson
 void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 
-	gsl_vector_set (df, 0, 0);
-	gsl_vector_set (df, 1, 0);
-	gsl_vector_set (df, 2, 0);
-	gsl_vector_set (df, 3, 0);
-	gsl_vector_set (df, 4, 0);
-	gsl_vector_set (df, 5, 0);
+	gsl_vector_set_zero(df);
 
 	// Initialize All Data
 	double x, y, z, roll, pitch ,yaw;
@@ -268,21 +270,21 @@ void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 		computeSupervoxelDfCost(supervoxel, transformedScan2, pose, df);
 	}
 
-//	std::cout << "df: " << std::endl << df << std::endl;
-
+//	std::cout << "df: " << std::endl;
+//	std::cout << gsl_vector_get(df, 0) << std::endl;
+//	std::cout << gsl_vector_get(df, 1) << std::endl;
+//	std::cout << gsl_vector_get(df, 2) << std::endl;
+//	std::cout << gsl_vector_get(df, 3) << std::endl;
+//	std::cout << gsl_vector_get(df, 4) << std::endl;
+//	std::cout << gsl_vector_get(df, 5) << std::endl;
 }
 
 
-void fdf (const gsl_vector *pose, void *params, double *f, gsl_vector *df) {
+void fdf (const gsl_vector *pose, void *params, double *fCost, gsl_vector *df) {
 
 	std::cout << "fdf" << std::endl;
 
-	gsl_vector_set (df, 0, 0);
-	gsl_vector_set (df, 1, 0);
-	gsl_vector_set (df, 2, 0);
-	gsl_vector_set (df, 3, 0);
-	gsl_vector_set (df, 4, 0);
-	gsl_vector_set (df, 5, 0);
+	gsl_vector_set_zero(df);
 
 	// Initialize All Data
 	double x, y, z, roll, pitch ,yaw;
@@ -298,7 +300,6 @@ void fdf (const gsl_vector *pose, void *params, double *f, gsl_vector *df) {
 	svr::PointCloudT::Ptr scan1 = optiData->scan1;
 	svr::PointCloudT::Ptr scan2 = optiData->scan2;
 	svr::PointCloudT::Ptr transformedScan2 =  boost::shared_ptr<svr::PointCloudT>(new svr::PointCloudT());
-
 	svr::SVMap* SVMapping = optiData->svMap;
 
 	// Create Transformation
@@ -308,6 +309,15 @@ void fdf (const gsl_vector *pose, void *params, double *f, gsl_vector *df) {
 	transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 	transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
 
+//	cout << transform.matrix() << endl;
+
+//	Eigen::Matrix3f nmat;
+//	nmat = Eigen::AngleAxisf(roll, Eigen::Vector3f::UnitX())
+//	    		   * Eigen::AngleAxisf(pitch, Eigen::Vector3f::UnitY())
+//	    		   * Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitZ());
+//
+//	cout << "M: " << endl << nmat << endl;
+
 	// Transform point cloud
 	pcl::transformPointCloud(*scan2, *transformedScan2, transform);
 
@@ -315,9 +325,17 @@ void fdf (const gsl_vector *pose, void *params, double *f, gsl_vector *df) {
 	for (svItr = SVMapping->begin(); svItr != SVMapping->end(); ++svItr) {
 		SData::Ptr supervoxel = svItr->second;
 		computeSupervoxelDfCost(supervoxel, transformedScan2, pose, df);
-		*f += computeSupervoxelFCost(supervoxel, transformedScan2);
+		*fCost += computeSupervoxelFCost(supervoxel, transformedScan2);
 	}
 
+	cout << "F: " << *fCost << endl;
+	std::cout << "df: " << std::endl;
+	std::cout << gsl_vector_get(df, 0) << std::endl;
+	std::cout << gsl_vector_get(df, 1) << std::endl;
+	std::cout << gsl_vector_get(df, 2) << std::endl;
+	std::cout << gsl_vector_get(df, 3) << std::endl;
+	std::cout << gsl_vector_get(df, 4) << std::endl;
+	std::cout << gsl_vector_get(df, 5) << std::endl;
 }
 
 const char* Status(int status) { return gsl_strerror(status); }

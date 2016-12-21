@@ -458,7 +458,6 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
         }
 
     }
-    
 }
 
 void
@@ -582,11 +581,11 @@ SupervoxelRegistration::createSuperVoxelMappingForScan2 () {
 					SData::Ptr supervoxel = supervoxelMap[label];
 					supervoxel->getVoxelBVector()->push_back(voxel);
 				} else {
-					SData::Ptr supervoxel = boost::shared_ptr<SData>(new SData());
-					supervoxel->setLabel(label);
-					supervoxel->getVoxelBVector()->push_back(voxel);
-					// Add SV to SVMapping
-					supervoxelMap.insert(std::pair<uint, typename SData::Ptr>(label, supervoxel));
+//					SData::Ptr supervoxel = boost::shared_ptr<SData>(new SData());
+//					supervoxel->setLabel(label);
+//					supervoxel->getVoxelBVector()->push_back(voxel);
+//					// Add SV to SVMapping
+//					supervoxelMap.insert(std::pair<uint, typename SData::Ptr>(label, supervoxel));
 				}
 
 			} else {
