@@ -91,7 +91,12 @@ SupervoxelRegistration::alignScans() {
 		createSuperVoxelMappingForScan2();
 
 		cout << "Iteration " << iteration+1 << " ..." << endl;
-		trans_new = optimize();
+
+		svr_optimize::svr_opti_data opti_data;
+		opti_data.scan1 = A;
+		opti_data.scan2 = B;
+		opti_data.svMap = &supervoxelMap;
+		trans_new = optimize(opti_data);
 
 		/* compute the delta from this iteration */
 		delta = 0.;
@@ -759,77 +764,6 @@ SupervoxelRegistration::createKDTreeForSupervoxels() {
 	}
 
 	supervoxelKdTree.setInputCloud(svLabelCloud);
-}
-
-/*
- *	Optimization Function
- * 	Note: Scan A Data remains constant including the supervoxels generated
- * 	v is the transformation vector XYZRPY best guess till now
- * 	params will include :-
- *
- * 	1. SVMap -> Supervoxel to scanA Indices will remain constant
- * 	2. SVMap -> Supervoxel to scanB Indices (will change in every iteration)
- * 	3. LeafMapContainer -> This will always be constant (Will be used to find supervoxels for scan B points)
- * 	4. Octree -> To find the leaf container for scan B points
- * 	5. Scan A
- * 	6. Scan B
- *
- *	Function steps:
- *
- *	1. Transform B with current XYZRPY
- *	2. Find the corresponding Supervoxels
- *	3. Find the supervoxels with a minimum number of points
- *	4. Apply Mutual Information on the common Supervoxels
- *
- *	CommonSupervoxels will be used for MI calculation
- *
- */
-
-double mi_f (const gsl_vector *pose, void* params) {
-
-	// Initialize All Data
-	double x, y, z, roll, pitch ,yaw;
-	x = gsl_vector_get(pose, 0);
-	y = gsl_vector_get(pose, 1);
-	z = gsl_vector_get(pose, 2);
-	roll = gsl_vector_get(pose, 3);
-	pitch = gsl_vector_get(pose, 4);
-	yaw = gsl_vector_get(pose, 5);
-
-	MI_Opti_Data* miOptiData = (MI_Opti_Data*) params;
-
-	PointCloudT::Ptr scan1 = miOptiData->scan1;
-	PointCloudT::Ptr scan2 = miOptiData->scan2;
-	PointCloudT::Ptr transformedScan2 =  boost::shared_ptr<PointCloudT>(new PointCloudT());
-
-	SVMap* SVMapping = miOptiData->svMap;
-
-	// Create Transformation
-	Eigen::Affine3d transform = Eigen::Affine3d::Identity();
-	transform.translation() << x,y,z;
-	transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
-	transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
-	transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
-
-	// Transform point cloud
-	pcl::transformPointCloud(*scan2, *transformedScan2, transform);
-
-	// Clear SVMap for new scan2 properties
-
-	SVMap::iterator svItr;
-	for (svItr = SVMapping->begin(); svItr != SVMapping->end(); ++svItr) {
-		SData::Ptr supervoxel = svItr->second;
-		supervoxel->clearScanBData();
-	}
-
-//	calculateSupervoxelScanBData();
-
-//	double mi = calculateMutualInformation();
-
-	double mi = 0;
-	//	cout << "MI Function Called with refreshed values" << mi << endl;
-
-	return -mi;
 }
 
 void
