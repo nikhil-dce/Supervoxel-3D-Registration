@@ -44,12 +44,6 @@ struct OctreeBounds {
 	}
 };
 
-struct MI_Opti_Data{
-	SVMap* svMap;
-	PointCloudT::Ptr scan1;
-	PointCloudT::Ptr scan2;
-};
-
 class SupervoxelRegistration {
 
 public:
@@ -90,9 +84,6 @@ protected:
 
 	void
 	calculateSupervoxelScanBData();
-
-	Eigen::Affine3d
-	optimize();
 
 	void
 	createKDTreeForSupervoxels();

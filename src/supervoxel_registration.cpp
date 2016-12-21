@@ -10,7 +10,6 @@
 #include <boost/thread/thread.hpp>
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
-#include <gsl/gsl_multimin.h>
 
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
@@ -26,6 +25,7 @@
 #include "supervoxel_octree_pointcloud_adjacency.h"
 #include "supervoxel_mapping.hpp"
 #include "supervoxel_registration.h"
+#include "supervoxel_optimize.h"
 #include "supervoxel_util.hpp"
 
 
@@ -830,127 +830,6 @@ double mi_f (const gsl_vector *pose, void* params) {
 	//	cout << "MI Function Called with refreshed values" << mi << endl;
 
 	return -mi;
-}
-
-Eigen::Affine3d
-SupervoxelRegistration::optimize() {
-
-	MI_Opti_Data* mod = new MI_Opti_Data();
-	mod->scan1 = A;
-	mod->scan2 = B;
-	mod->svMap = &supervoxelMap;
-
-	const gsl_multimin_fminimizer_type *T = gsl_multimin_fminimizer_nmsimplex2;
-
-	//	const gsl_multimin_fdfminimizer_type *T = gsl_multimin_fdfminimizer_vector_bfgs2;
-	gsl_multimin_fminimizer *s = NULL;
-
-	gsl_vector *ss, *baseX;
-	gsl_multimin_function minex_func;
-
-	size_t iter = 0;
-	int status;
-	double size;
-
-	/* Set  initial step sizes to 1 */
-	ss = gsl_vector_alloc (6);
-	gsl_vector_set (ss, 0, 0.2);
-	gsl_vector_set (ss, 1, 0.2);
-	gsl_vector_set (ss, 2, 0.2);
-	gsl_vector_set (ss, 3, 0.1);
-	gsl_vector_set (ss, 4, 0.1);
-	gsl_vector_set (ss, 5, 0.1);
-
-	baseX = gsl_vector_alloc (6);
-	gsl_vector_set (baseX, 0, 0);
-	gsl_vector_set (baseX, 1, 0);
-	gsl_vector_set (baseX, 2, 0);
-	gsl_vector_set (baseX, 3, 0);
-	gsl_vector_set (baseX, 4, 0);
-	gsl_vector_set (baseX, 5, 0);
-
-
-	/* Initialize method and iterate */
-	minex_func.n = 6; // Dimension
-	minex_func.f = mi_f;
-	minex_func.params = mod;
-
-	s = gsl_multimin_fminimizer_alloc (T, 6);
-	gsl_multimin_fminimizer_set (s, &minex_func, baseX, ss);
-
-	do {
-
-		iter++;
-		status = gsl_multimin_fminimizer_iterate(s);
-
-		if (status)
-			break;
-
-		size = gsl_multimin_fminimizer_size (s);
-		status = gsl_multimin_test_size (size, 2e-2);
-
-		printf("%5d f() = %7.3f size = %.3f x=%f y=%f z=%f roll=%f pitch=%f yaw=%f \n",
-				(int)iter,
-				s->fval,
-				size, gsl_vector_get (s->x, 0), gsl_vector_get (s->x, 1), gsl_vector_get (s->x, 2),
-				gsl_vector_get (s->x, 3), gsl_vector_get (s->x, 4), gsl_vector_get (s->x, 5));
-
-		if (status == GSL_SUCCESS || iter >= 100) {
-
-			cout << "MI= " << s->fval << " Iteration: " << iter << endl;
-
-			cout << "Base Transformation: " << endl;
-
-			double tx = gsl_vector_get (baseX, 0);
-			double ty = gsl_vector_get (baseX, 1);
-			double tz = gsl_vector_get (baseX, 2);
-			double roll = gsl_vector_get (baseX, 3);
-			double pitch = gsl_vector_get (baseX, 4);
-			double yaw = gsl_vector_get (baseX, 5);
-
-			cout << "Tx: " << tx << endl;
-			cout << "Ty: " << ty << endl;
-			cout << "Tz: " << tz << endl;
-			cout << "Roll: " << roll << endl;
-			cout << "Pitch: " << pitch << endl;
-			cout << "Yaw: " << yaw << endl;
-
-
-			cout << "Converged to minimum at " << endl;
-
-			tx = gsl_vector_get (s->x, 0);
-			ty = gsl_vector_get (s->x, 1);
-			tz = gsl_vector_get (s->x, 2);
-			roll = gsl_vector_get (s->x, 3);
-			pitch = gsl_vector_get (s->x, 4);
-			yaw = gsl_vector_get (s->x, 5);
-
-			cout << "Tx: " << tx << endl;
-			cout << "Ty: " << ty << endl;
-			cout << "Tz: " << tz << endl;
-			cout << "Roll: " << roll << endl;
-			cout << "Pitch: " << pitch << endl;
-			cout << "Yaw: " << yaw << endl;
-
-			Eigen::Affine3d resultantTransform = Eigen::Affine3d::Identity();
-			resultantTransform.translation() << tx, ty, tz;
-			resultantTransform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
-			resultantTransform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
-			resultantTransform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
-
-			gsl_vector_free(ss);
-			gsl_multimin_fminimizer_free(s);
-
-			return resultantTransform;
-		}
-
-	} while(status == GSL_CONTINUE && iter < 100);
-
-	//	gsl_vector_free(baseX);
-	gsl_vector_free(ss);
-	gsl_multimin_fminimizer_free(s);
-
-	return Eigen::Affine3d::Identity();
 }
 
 void
