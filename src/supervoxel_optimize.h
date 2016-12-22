@@ -33,8 +33,10 @@ double inline computePointFCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Mat
 
 	double c;
 
+	double normal3DConstant = NORMAL_3D_CONSTANT;
+
 	double c2 = epsilon2 * PROBABILITY_OUTLIERS_SUPERVOXEL;
-	double c1 = epsilon1;
+	double c1 = epsilon1 * normal3DConstant / sqrt (covariance.determinant()) ;
 
 	double d3 = -log(c2);
 	double d1 = -log(c1 + c2) -d3;
@@ -48,7 +50,7 @@ double inline computePointFCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Mat
 
 	float power = (X-U).transpose() * covariance.inverse() * (X-U);
 
-	c = -d1 * exp( -d2 * power / 2);
+	c = d1 * exp( -d2 * power / 2);
 
 	return c;
 }
@@ -81,13 +83,13 @@ double computeSupervoxelFCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan)
 
 	}
 
-	if (cost < 0 || epsilon1 <= 0 || epsilon2 <= 0) {
-		cout << " Points in A " << supervoxel->getPointACount() << endl;
-		cout << " Label: " << supervoxel->getLabel() << endl;
-		cout << " Cost: " << cost << endl;
-		cout << " Covariance: " << endl << supervoxelCovariance << endl;
-		cout << " Epsilons: " << epsilon1 << ' ' << epsilon2 << endl;
-	}
+//	if (cost < 0 || epsilon1 <= 0 || epsilon2 <= 0) {
+//		cout << " Points in A " << supervoxel->getPointACount() << endl;
+//		cout << " Label: " << supervoxel->getLabel() << endl;
+//		cout << " Cost: " << cost << endl;
+//		cout << " Covariance: " << endl << supervoxelCovariance << endl;
+//		cout << " Epsilons: " << epsilon1 << ' ' << epsilon2 << endl;
+//	}
 	return cost;
 }
 
@@ -126,13 +128,15 @@ double f (const gsl_vector *pose, void* params) {
 		cost += computeSupervoxelFCost(supervoxel, transformedScan2);
 	}
 
-	return -cost;
+	return cost;
 }
 
 void inline computePointDfCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Matrix3f covariance, double epsilon1, double epsilon2, const gsl_vector* pose, gsl_vector* df) {
 
+	double normal3DConstant = NORMAL_3D_CONSTANT;
+
 	double c2 = epsilon2 * PROBABILITY_OUTLIERS_SUPERVOXEL;
-	double c1 = epsilon1;
+	double c1 = epsilon1 * normal3DConstant / sqrt (covariance.determinant()) ;
 
 	double d3 = -log(c2);
 	double d1 = -log(c1 + c2) -d3;
@@ -161,14 +165,23 @@ void inline computePointDfCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Matr
 	double cz = cos(yaw);
 	double sz = sin(yaw);
 
-	double a = (X(0) - U(0)) * (-sx*sz + cx*sy*cz) + (X(1) - U(1)) * (-sx*cz - cx*sy*sz) + (X(2) - U(2)) * (-cx*cy);
-	double b = (X(0) - U(0)) * (cx*sz + sx*sy*cz) + (X(1) - U(1)) * (-sx*sy*sz + cx*cz) + (X(2) - U(2)) * (-sx*cy);
-	double c = (X(0) - U(0)) * (-sy*cz) + (X(1) - U(1)) * (sy*sz) + (X(2) - U(2)) * cy;
-	double d = (X(0) - U(0)) * (sx*cy*cz) + (X(1) - U(1)) * (-sx*cy*sz) + (X(2) - U(2)) * (sx*sy);
-	double e = (X(0) - U(0)) * (-cx*cy*cz) + (X(1) - U(1)) * (cx*cy*sz) + (X(2) - U(2)) * (-cx*sy);
-	double f = (X(0) - U(0)) * (-cy*sz) + (X(1) - U(1)) * (-cy*cz);
-	double g = (X(0) - U(0)) * (cx*cz - sx*sy*sz) + (X(1) - U(1)) * (-cx*sz - sx*sy*cz);
-	double h = (X(0)- U(0)) * (sx*cz + cx*sy*sz) + (X(1) - U(1)) * (cx*sy*cz - sx*sz);
+//	double a = (X(0) - U(0)) * (-sx*sz + cx*sy*cz) + (X(1) - U(1)) * (-sx*cz - cx*sy*sz) + (X(2) - U(2)) * (-cx*cy);
+//	double b = (X(0) - U(0)) * (cx*sz + sx*sy*cz) + (X(1) - U(1)) * (-sx*sy*sz + cx*cz) + (X(2) - U(2)) * (-sx*cy);
+//	double c = (X(0) - U(0)) * (-sy*cz) + (X(1) - U(1)) * (sy*sz) + (X(2) - U(2)) * cy;
+//	double d = (X(0) - U(0)) * (sx*cy*cz) + (X(1) - U(1)) * (-sx*cy*sz) + (X(2) - U(2)) * (sx*sy);
+//	double e = (X(0) - U(0)) * (-cx*cy*cz) + (X(1) - U(1)) * (cx*cy*sz) + (X(2) - U(2)) * (-cx*sy);
+//	double f = (X(0) - U(0)) * (-cy*sz) + (X(1) - U(1)) * (-cy*cz);
+//	double g = (X(0) - U(0)) * (cx*cz - sx*sy*sz) + (X(1) - U(1)) * (-cx*sz - sx*sy*cz);
+//	double h = (X(0)- U(0)) * (sx*cz + cx*sy*sz) + (X(1) - U(1)) * (cx*sy*cz - sx*sz);
+
+	double a = X(0) * (-sx*sz + cx*sy*cz)	+	X(1) * (-sx*cz - cx*sy*sz) 	+	X(2) * (-cx*cy);
+	double b = X(0) * (cx*sz + sx*sy*cz) 	+	X(1) * (-sx*sy*sz + cx*cz) 	+ 	X(2) * (-sx*cy);
+	double c = X(0) * (-sy*cz) 			 	+ 	X(1) * (sy*sz) 				+ 	X(2) * cy;
+	double d = X(0) * (sx*cy*cz) 		 	+	X(1) * (-sx*cy*sz) 			+ 	X(2) * (sx*sy);
+	double e = X(0) * (-cx*cy*cz)        	+  	X(1) * (cx*cy*sz) 			+ 	X(2) * (-cx*sy);
+	double f = X(0) * (-cy*sz) 			 	+ 	X(1) * (-cy*cz);
+	double g = X(0) * (cx*cz - sx*sy*sz) 	+ 	X(1) * (-cx*sz - sx*sy*cz);
+	double h = X(0) * (sx*cz + cx*sy*sz) 	+ 	X(1) * (cx*sy*cz - sx*sz);
 
 	Eigen::MatrixXf Jacobian (3,6);
 	Jacobian << 1,0,0,0,c,f,
@@ -180,7 +193,7 @@ void inline computePointDfCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Matr
 
 	Eigen::MatrixXf r (1,6);
 	r = (X-U).transpose() * covarianceInv * Jacobian;
-	r = d1 * d2 * r * exp(power);
+	r = -d1 * d2 * r * exp(power);
 	double r0 = r(0);
 	double r1 = r(1);
 	double r2 = r(2);
@@ -265,6 +278,15 @@ void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 		computeSupervoxelDfCost(supervoxel, transformedScan2, pose, df);
 	}
 
+	cout << "df" << endl;
+	std::cout << "df: " << std::endl;
+	std::cout << gsl_vector_get(df, 0) << std::endl;
+	std::cout << gsl_vector_get(df, 1) << std::endl;
+	std::cout << gsl_vector_get(df, 2) << std::endl;
+	std::cout << gsl_vector_get(df, 3) << std::endl;
+	std::cout << gsl_vector_get(df, 4) << std::endl;
+	std::cout << gsl_vector_get(df, 5) << std::endl;
+
 }
 
 
@@ -305,6 +327,7 @@ void fdf (const gsl_vector *pose, void *params, double *fCost, gsl_vector *df) {
 		*fCost += computeSupervoxelFCost(supervoxel, transformedScan2);
 	}
 
+	cout << "fdf" << endl;
 	cout << "F: " << *fCost << endl;
 	std::cout << "df: " << std::endl;
 	std::cout << gsl_vector_get(df, 0) << std::endl;
@@ -320,7 +343,8 @@ const char* Status(int status) { return gsl_strerror(status); }
 Eigen::Affine3d
 optimize(svr_opti_data opt_data) {
 
-	const gsl_multimin_fdfminimizer_type *T = gsl_multimin_fdfminimizer_vector_bfgs2;
+//	const gsl_multimin_fdfminimizer_type *T = gsl_multimin_fdfminimizer_vector_bfgs2;
+	const gsl_multimin_fdfminimizer_type *T = gsl_multimin_fdfminimizer_conjugate_fr;
 	gsl_multimin_fdfminimizer *gsl_minimizer = NULL;
 	Eigen::Affine3d last_transform = opt_data.t;
 
@@ -334,7 +358,7 @@ optimize(svr_opti_data opt_data) {
 	bool debug = true;
 	int max_iter = 20;
 	double line_search_tol = .01;
-	double gradient_tol = 1e-2;
+	double gradient_tol = 2e-2;
 	double step_size = 1.;
 
 	// set up the gsl function_fdf struct
@@ -375,10 +399,40 @@ optimize(svr_opti_data opt_data) {
 	}
 
 
-	if (status == GSL_SUCCESS) {
+	if (status == GSL_SUCCESS || iter == max_iter) {
 
 		cout << "Cost: " << gsl_minimizer->f << " Iteration: " << iter << endl;
 		cout << "Converged to minimum at " << endl;
+
+		double tx = gsl_vector_get (gsl_minimizer->x, 0);
+		double ty = gsl_vector_get (gsl_minimizer->x, 1);
+		double tz = gsl_vector_get (gsl_minimizer->x, 2);
+		double roll = gsl_vector_get (gsl_minimizer->x, 3);
+		double pitch = gsl_vector_get (gsl_minimizer->x, 4);
+		double yaw = gsl_vector_get (gsl_minimizer->x, 5);
+
+		cout << "Tx: " << tx << endl;
+		cout << "Ty: " << ty << endl;
+		cout << "Tz: " << tz << endl;
+		cout << "Roll: " << roll << endl;
+		cout << "Pitch: " << pitch << endl;
+		cout << "Yaw: " << yaw << endl;
+
+		Eigen::Affine3d resultantTransform = Eigen::Affine3d::Identity();
+		resultantTransform.translation() << tx, ty, tz;
+		resultantTransform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
+		resultantTransform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		resultantTransform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+
+		gsl_vector_free(baseX);
+		gsl_multimin_fdfminimizer_free(gsl_minimizer);
+
+		return resultantTransform;
+
+	} else if (status == GSL_ENOPROG) {
+
+		cout << "Cost: " << gsl_minimizer->f << " Iteration: " << iter << endl;
+		cout << "Not making any progress " << endl;
 
 		double tx = gsl_vector_get (gsl_minimizer->x, 0);
 		double ty = gsl_vector_get (gsl_minimizer->x, 1);

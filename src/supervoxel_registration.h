@@ -7,7 +7,7 @@
 #include "supervoxel_cluster_search.h"
 #include "supervoxel_mapping.hpp"
 
-#define SEARCH_SUPERVOXEL_NN 10;
+#define SEARCH_SUPERVOXEL_NN 20;
 #define NORM_VR 0.1
 #define NORM_R 5 // 5 meters
 

@@ -601,6 +601,7 @@ SupervoxelRegistration::createSuperVoxelMappingForScan2 (PointCloudT::Ptr transf
 			searchForSupervoxel = true;
 		}
 
+		searchForSupervoxel = true;
 		if (searchForSupervoxel) {
 
 			// search for the nearest supervoxel with the modified distance function which takes normal into account
