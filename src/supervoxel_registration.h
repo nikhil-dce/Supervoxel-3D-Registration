@@ -6,6 +6,7 @@
 #include <fstream>
 #include "supervoxel_cluster_search.h"
 #include "supervoxel_mapping.hpp"
+#include <boost/unordered_map.hpp>
 
 #define SEARCH_SUPERVOXEL_NN 20;
 #define NORM_VR 0.1
@@ -31,7 +32,8 @@ typedef pcl::PointCloud<PointLT> PointLCloudT;
 typedef pcl::KdTreeFLANN<pcl::PointXYZ> KdTreeXYZ;
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloudXYZ;
 
-typedef std::map<uint, typename SData::Ptr> SVMap;
+typedef boost::unordered::unordered_map<uint, typename SData::Ptr> SVMap;
+//typedef std::map<uint, typename SData::Ptr> SVMap;
 typedef std::map<typename SupervoxelClusteringT::LeafContainerT*, uint32_t> LabeledLeafMapT;
 typedef std::map<typename SupervoxelClusteringT::LeafContainerT*, typename VData::Ptr> LeafVoxelMapT;
 typedef typename SupervoxelClusteringT::OctreeAdjacencyT::Ptr AdjacencyOctreeT;
@@ -69,7 +71,7 @@ public:
 	showTestSuperVoxel(
 			int supervoxelLabel);
 
-	void
+	Eigen::Matrix4d
 	alignScans();
 
 	void

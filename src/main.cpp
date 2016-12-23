@@ -166,7 +166,15 @@ main (int argc, char *argv[]) {
 		std::cout << "Alignment Scan" << std::endl;
 
 		// begin registration
-		supervoxelRegistration.alignScans();
+		Eigen::Matrix4d result = supervoxelRegistration.alignScans();
+
+		// clear string
+		ss.str(std::string());
+		ss << dataDir << "trans_result";
+		std::string transResultFile = ss.str();
+		std::ofstream fout(transResultFile.c_str());
+		fout << result;
+		fout.close();
 	}
 
 }

@@ -23,24 +23,15 @@ namespace svr_optimize {
 
 struct svr_opti_data {
 	svr::SVMap* svMap;
-	svr::PointCloudT::Ptr scan1;
+//	svr::PointCloudT::Ptr scan1;
 	svr::PointCloudT::Ptr scan2;
 	Eigen::Affine3d t;
 };
 
 // Magnusson
-double inline computePointFCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Matrix3f covariance, double epsilon1, double epsilon2) {
+double inline computePointFCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Matrix3f covarianceInverse, double d1, double d2) {
 
 	double c;
-
-	double normal3DConstant = NORMAL_3D_CONSTANT;
-
-	double c2 = epsilon2 * PROBABILITY_OUTLIERS_SUPERVOXEL;
-	double c1 = epsilon1 * normal3DConstant / sqrt (covariance.determinant()) ;
-
-	double d3 = -log(c2);
-	double d1 = -log(c1 + c2) -d3;
-	double d2 = -2 * log( (-log(c1 * NSQRT_EXP + c2) - d3) / d1);
 
 	Eigen::Vector3f X;
 	X << p.x, p.y, p.z;
@@ -48,7 +39,7 @@ double inline computePointFCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Mat
 	Eigen::Vector3f U;
 	U << mean(0), mean(1), mean(2);
 
-	float power = (X-U).transpose() * covariance.inverse() * (X-U);
+	float power = (X-U).transpose() * covarianceInverse * (X-U);
 
 	c = d1 * exp( -d2 * power / 2);
 
@@ -65,6 +56,17 @@ double computeSupervoxelFCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan)
 	Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
 	Eigen::Vector4f supervoxelMean = supervoxel->getCentroid();
 
+	double normal3DConstant = NORMAL_3D_CONSTANT;
+
+	double c2 = epsilon2 * PROBABILITY_OUTLIERS_SUPERVOXEL;
+	double c1 = epsilon1 * normal3DConstant / sqrt (supervoxelCovariance.determinant()) ;
+
+	double d3 = -log(c2);
+	double d1 = -log(c1 + c2) -d3;
+	double d2 = -2 * log( (-log(c1 * NSQRT_EXP + c2) - d3) / d1);
+
+	Eigen::Matrix3f supervoxelCovarianceInverse = supervoxelCovariance.inverse();
+
 	SData::VoxelVectorPtr voxels = supervoxel->getVoxelBVector();
 	SData::VoxelVector::iterator vxlItr;
 
@@ -78,7 +80,7 @@ double computeSupervoxelFCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan)
 		for (itr = indices->begin(); itr != indices->end(); ++itr) {
 			int index = *itr;
 			svr::PointT p = scan->at(index);
-			cost += computePointFCost(p, supervoxelMean, supervoxelCovariance, epsilon1, epsilon2);
+			cost += computePointFCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2);
 		}
 
 	}
@@ -95,6 +97,9 @@ double computeSupervoxelFCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan)
 
 double f (const gsl_vector *pose, void* params) {
 
+	cout << "Calculating f" << endl;
+	clock_t start = svr_util::getClock();
+
 	// Initialize All Data
 	double x, y, z, roll, pitch ,yaw;
 	x = gsl_vector_get(pose, 0);
@@ -106,7 +111,6 @@ double f (const gsl_vector *pose, void* params) {
 
 	svr_opti_data* optiData = (svr_opti_data*) params;
 
-	svr::PointCloudT::Ptr scan1 = optiData->scan1;
 	svr::PointCloudT::Ptr scan2 = optiData->scan2;
 	svr::PointCloudT::Ptr transformedScan2 =  boost::shared_ptr<svr::PointCloudT>(new svr::PointCloudT());
 	svr::SVMap* SVMapping = optiData->svMap;
@@ -128,21 +132,13 @@ double f (const gsl_vector *pose, void* params) {
 		cost += computeSupervoxelFCost(supervoxel, transformedScan2);
 	}
 
+	clock_t end = svr_util::getClock();
+	std::cout << "f: " << svr_util::getClockTime(start, end) << std::endl;
+
 	return cost;
 }
 
-void inline computePointDfCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Matrix3f covariance, double epsilon1, double epsilon2, const gsl_vector* pose, gsl_vector* df) {
-
-	double normal3DConstant = NORMAL_3D_CONSTANT;
-
-	double c2 = epsilon2 * PROBABILITY_OUTLIERS_SUPERVOXEL;
-	double c1 = epsilon1 * normal3DConstant / sqrt (covariance.determinant()) ;
-
-	double d3 = -log(c2);
-	double d1 = -log(c1 + c2) -d3;
-	double d2 = -2 * log( (-log(c1 * NSQRT_EXP + c2) - d3) / d1);
-
-	Eigen::Matrix3f covarianceInv = covariance.inverse();
+void inline computePointDfCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Matrix3f covarianceInv, double d1, double d2, const gsl_vector* pose, gsl_vector* df) {
 
 	Eigen::Vector3f X;
 	X << p.x, p.y, p.z;
@@ -221,6 +217,17 @@ void computeSupervoxelDfCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, 
 	Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
 	Eigen::Vector4f supervoxelMean = supervoxel->getCentroid();
 
+	double normal3DConstant = NORMAL_3D_CONSTANT;
+
+	double c2 = epsilon2 * PROBABILITY_OUTLIERS_SUPERVOXEL;
+	double c1 = epsilon1 * normal3DConstant / sqrt (supervoxelCovariance.determinant()) ;
+
+	double d3 = -log(c2);
+	double d1 = -log(c1 + c2) -d3;
+	double d2 = -2 * log( (-log(c1 * NSQRT_EXP + c2) - d3) / d1);
+
+	Eigen::Matrix3f supervoxelCovarianceInverse = supervoxelCovariance.inverse();
+
 	SData::VoxelVectorPtr voxels = supervoxel->getVoxelBVector();
 	SData::VoxelVector::iterator vxlItr;
 
@@ -234,7 +241,7 @@ void computeSupervoxelDfCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, 
 		for (itr = indices->begin(); itr != indices->end(); ++itr) {
 			int index = *itr;
 			svr::PointT p = scan->at(index);
-			computePointDfCost(p, supervoxelMean, supervoxelCovariance, epsilon1, epsilon2, pose, df);
+			computePointDfCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2, pose, df);
 		}
 
 	}
@@ -245,6 +252,9 @@ void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 
 	gsl_vector_set_zero(df);
 
+	cout << "Calculating df" << endl;
+	clock_t start = svr_util::getClock();
+
 	// Initialize All Data
 	double x, y, z, roll, pitch ,yaw;
 	x = gsl_vector_get(pose, 0);
@@ -256,10 +266,8 @@ void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 
 	svr_opti_data* optiData = (svr_opti_data*) params;
 
-	svr::PointCloudT::Ptr scan1 = optiData->scan1;
 	svr::PointCloudT::Ptr scan2 = optiData->scan2;
 	svr::PointCloudT::Ptr transformedScan2 =  boost::shared_ptr<svr::PointCloudT>(new svr::PointCloudT());
-
 	svr::SVMap* SVMapping = optiData->svMap;
 
 	// Create Transformation
@@ -278,22 +286,64 @@ void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 		computeSupervoxelDfCost(supervoxel, transformedScan2, pose, df);
 	}
 
-	cout << "df" << endl;
-	std::cout << "df: " << std::endl;
-	std::cout << gsl_vector_get(df, 0) << std::endl;
-	std::cout << gsl_vector_get(df, 1) << std::endl;
-	std::cout << gsl_vector_get(df, 2) << std::endl;
-	std::cout << gsl_vector_get(df, 3) << std::endl;
-	std::cout << gsl_vector_get(df, 4) << std::endl;
-	std::cout << gsl_vector_get(df, 5) << std::endl;
+	clock_t end = svr_util::getClock();
+
+	std::cout << "df: " << svr_util::getClockTime(start, end) << std::endl;
+//	std::cout << gsl_vector_get(df, 0) << std::endl;
+//	std::cout << gsl_vector_get(df, 1) << std::endl;
+//	std::cout << gsl_vector_get(df, 2) << std::endl;
+//	std::cout << gsl_vector_get(df, 3) << std::endl;
+//	std::cout << gsl_vector_get(df, 4) << std::endl;
+//	std::cout << gsl_vector_get(df, 5) << std::endl;
 
 }
 
+void computeSupervoxelFdf(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, const gsl_vector* pose, gsl_vector* df, double* fCost) {
+
+	double epsilon1 = supervoxel->getEpsilon1();
+	double epsilon2 = supervoxel->getEpsilon2();
+	Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
+	Eigen::Vector4f supervoxelMean = supervoxel->getCentroid();
+
+	double normal3DConstant = NORMAL_3D_CONSTANT;
+
+	double c2 = epsilon2 * PROBABILITY_OUTLIERS_SUPERVOXEL;
+	double c1 = epsilon1 * normal3DConstant / sqrt (supervoxelCovariance.determinant()) ;
+
+	double d3 = -log(c2);
+	double d1 = -log(c1 + c2) -d3;
+	double d2 = -2 * log( (-log(c1 * NSQRT_EXP + c2) - d3) / d1);
+
+	Eigen::Matrix3f supervoxelCovarianceInverse = supervoxelCovariance.inverse();
+
+	SData::VoxelVectorPtr voxels = supervoxel->getVoxelBVector();
+	SData::VoxelVector::iterator vxlItr;
+
+	for (vxlItr = voxels->begin(); vxlItr != voxels->end(); ++vxlItr) {
+
+		VData::Ptr voxel = *vxlItr;
+
+		VData::ScanIndexVectorPtr indices = voxel->getIndexVector();
+		VData::ScanIndexVector::iterator itr;
+
+		for (itr = indices->begin(); itr != indices->end(); ++itr) {
+			int index = *itr;
+			svr::PointT p = scan->at(index);
+			computePointDfCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2, pose, df);
+			*fCost += computePointFCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2);
+		}
+
+	}
+
+}
 
 void fdf (const gsl_vector *pose, void *params, double *fCost, gsl_vector *df) {
 
 	gsl_vector_set_zero(df);
 
+	cout << "Calculating fdf" << endl;
+	clock_t start = svr_util::getClock();
+
 	// Initialize All Data
 	double x, y, z, roll, pitch ,yaw;
 	x = gsl_vector_get(pose, 0);
@@ -305,7 +355,6 @@ void fdf (const gsl_vector *pose, void *params, double *fCost, gsl_vector *df) {
 
 	svr_opti_data* optiData = (svr_opti_data*) params;
 
-	svr::PointCloudT::Ptr scan1 = optiData->scan1;
 	svr::PointCloudT::Ptr scan2 = optiData->scan2;
 	svr::PointCloudT::Ptr transformedScan2 =  boost::shared_ptr<svr::PointCloudT>(new svr::PointCloudT());
 	svr::SVMap* SVMapping = optiData->svMap;
@@ -323,12 +372,15 @@ void fdf (const gsl_vector *pose, void *params, double *fCost, gsl_vector *df) {
 	svr::SVMap::iterator svItr;
 	for (svItr = SVMapping->begin(); svItr != SVMapping->end(); ++svItr) {
 		SData::Ptr supervoxel = svItr->second;
-		computeSupervoxelDfCost(supervoxel, transformedScan2, pose, df);
-		*fCost += computeSupervoxelFCost(supervoxel, transformedScan2);
+		computeSupervoxelFdf(supervoxel, transformedScan2, pose, df, fCost);
+//		computeSupervoxelDfCost(supervoxel, transformedScan2, pose, df);
+//		*fCost += computeSupervoxelFCost(supervoxel, transformedScan2);
 	}
 
-	cout << "fdf" << endl;
-	cout << "F: " << *fCost << endl;
+	clock_t end = svr_util::getClock();
+
+	cout << "fdf " << svr_util::getClockTime(start, end) << std::endl;
+	cout << "F: " << *fCost << std::endl;
 	std::cout << "df: " << std::endl;
 	std::cout << gsl_vector_get(df, 0) << std::endl;
 	std::cout << gsl_vector_get(df, 1) << std::endl;
@@ -357,8 +409,8 @@ optimize(svr_opti_data opt_data) {
 
 	bool debug = true;
 	int max_iter = 20;
-	double line_search_tol = .01;
-	double gradient_tol = 2e-2;
+	double line_search_tol = .02;
+	double gradient_tol = 5e-2;
 	double step_size = 1.;
 
 	// set up the gsl function_fdf struct

@@ -118,6 +118,17 @@ double calculateApproximateIntegralForVoxel(float ax, float bx, float ay, float 
     return integral;
 }
     
+
+clock_t inline getClock() {
+	clock_t cl = clock();
+	return cl;
+}
+
+double inline getClockTime(clock_t start, clock_t end) {
+	double time_spent = (double)(end - start) / CLOCKS_PER_SEC;
+	return time_spent;
+}
+
 }
 #endif /* svr_util_hpp */
 

@@ -67,10 +67,12 @@ SupervoxelRegistration::prepareForRegistration() {
 }
 
 // Return trans
-void
+Eigen::Matrix4d
 SupervoxelRegistration::alignScans() {
 
 	prepareForRegistration();
+
+	cout << "Debug Mode: Preparation Complete" << endl;
 
 	Eigen::Affine3d trans_last = Eigen::Affine3d::Identity();
 	Eigen::Affine3d trans_new;
@@ -91,12 +93,14 @@ SupervoxelRegistration::alignScans() {
 		transformPointCloud (*B, *transformedScan2, trans_last);
 		createSuperVoxelMappingForScan2(transformedScan2);
 
+		cout << "Debug Mode: Printing supervoxel Map..." << endl;
+
 		printSupervoxelMap();
 
 		cout << "Iteration " << iteration+1 << " ..." << endl;
 
 		svr_optimize::svr_opti_data opti_data;
-		opti_data.scan1 = A;
+//		opti_data.scan1 = A;
 		opti_data.scan2 = B;
 		opti_data.svMap = &supervoxelMap;
 		opti_data.t = trans_last;
@@ -138,13 +142,11 @@ SupervoxelRegistration::alignScans() {
 
 	// Save transformation in a file
 
-	cout << "Resultant Transformation: " << endl << trans_new.inverse().matrix();
+	Eigen::Matrix4d result = trans_new.inverse().matrix();
+	cout << "Resultant Transformation: " << endl << result;
 	cout << endl;
 
-	std::string transFilename ("trans_result");
-	ofstream fout(transFilename.c_str());
-	fout << trans_new.inverse().matrix();
-	fout.close();
+	return result;
 
 }
 
@@ -400,6 +402,7 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 
 	}
     
+	cout << "Debug Mode: Removing supervoxels with points less than " << MIN_POINTS_IN_SUPERVOXEL << endl;
 	// Remove labels in labelsToRemove
 	std::vector<int>::iterator itr = labelsToRemove.begin();
 	for (; itr != labelsToRemove.end(); itr ++) {
@@ -410,6 +413,7 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
     // Covariance and mean calculated
     
     
+	cout << "Calculating supervoxel data - covariance, mean, epsilon1 and epsilon2" << endl;
     // Calculate Epsilon1 and Epsilon2 for each supervoxel where
     // TotalSupervoxelProbability = Epsilon1 * ProbabilityFromNaturalDistribution + Epsilon2 * ProbabilityFromOutilers
     // Epsilon1 + Epsilon2 = 1
