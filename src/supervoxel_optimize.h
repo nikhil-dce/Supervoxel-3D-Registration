@@ -23,13 +23,12 @@ namespace svr_optimize {
 
 struct svr_opti_data {
 	svr::SVMap* svMap;
-//	svr::PointCloudT::Ptr scan1;
 	svr::PointCloudT::Ptr scan2;
 	Eigen::Affine3d t;
 };
 
 // Magnusson
-double inline computePointFCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Matrix3f covarianceInverse, double d1, double d2) {
+double inline computePointFCost (svr::PointT p, Eigen::Vector4f& mean, Eigen::Matrix3f& covarianceInverse, double d1, double d2) {
 
 	double c;
 
@@ -50,22 +49,12 @@ double computeSupervoxelFCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan)
 
 	double cost = 0;
 
-	double epsilon1 = supervoxel->getEpsilon1();
-	double epsilon2 = supervoxel->getEpsilon2();
-
 	Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
 	Eigen::Vector4f supervoxelMean = supervoxel->getCentroid();
 
-	double normal3DConstant = NORMAL_3D_CONSTANT;
-
-	double c2 = epsilon2 * PROBABILITY_OUTLIERS_SUPERVOXEL;
-	double c1 = epsilon1 * normal3DConstant / sqrt (supervoxelCovariance.determinant()) ;
-
-	double d3 = -log(c2);
-	double d1 = -log(c1 + c2) -d3;
-	double d2 = -2 * log( (-log(c1 * NSQRT_EXP + c2) - d3) / d1);
-
-	Eigen::Matrix3f supervoxelCovarianceInverse = supervoxelCovariance.inverse();
+	double d1 = supervoxel->getD1();
+	double d2 = supervoxel->getD2();
+	Eigen::Matrix3f supervoxelCovarianceInverse = supervoxel->getCovarianceInverse();
 
 	SData::VoxelVectorPtr voxels = supervoxel->getVoxelBVector();
 	SData::VoxelVector::iterator vxlItr;
@@ -138,7 +127,7 @@ double f (const gsl_vector *pose, void* params) {
 	return cost;
 }
 
-void inline computePointDfCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Matrix3f covarianceInv, double d1, double d2, const gsl_vector* pose, gsl_vector* df) {
+void inline computePointDfCost (svr::PointT p, Eigen::Vector4f& mean, Eigen::Matrix3f& covarianceInv, double d1, double d2, const gsl_vector* pose, gsl_vector* df) {
 
 	Eigen::Vector3f X;
 	X << p.x, p.y, p.z;
@@ -212,21 +201,11 @@ void inline computePointDfCost (svr::PointT p, Eigen::Vector4f mean, Eigen::Matr
 
 void computeSupervoxelDfCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, const gsl_vector* pose, gsl_vector* df) {
 
-	double epsilon1 = supervoxel->getEpsilon1();
-	double epsilon2 = supervoxel->getEpsilon2();
 	Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
 	Eigen::Vector4f supervoxelMean = supervoxel->getCentroid();
-
-	double normal3DConstant = NORMAL_3D_CONSTANT;
-
-	double c2 = epsilon2 * PROBABILITY_OUTLIERS_SUPERVOXEL;
-	double c1 = epsilon1 * normal3DConstant / sqrt (supervoxelCovariance.determinant()) ;
-
-	double d3 = -log(c2);
-	double d1 = -log(c1 + c2) -d3;
-	double d2 = -2 * log( (-log(c1 * NSQRT_EXP + c2) - d3) / d1);
-
-	Eigen::Matrix3f supervoxelCovarianceInverse = supervoxelCovariance.inverse();
+	double d2 = supervoxel->getD2();
+	double d1 = supervoxel->getD1();
+	Eigen::Matrix3f supervoxelCovarianceInverse = supervoxel->getCovarianceInverse();
 
 	SData::VoxelVectorPtr voxels = supervoxel->getVoxelBVector();
 	SData::VoxelVector::iterator vxlItr;
@@ -300,21 +279,12 @@ void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 
 void computeSupervoxelFdf(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, const gsl_vector* pose, gsl_vector* df, double* fCost) {
 
-	double epsilon1 = supervoxel->getEpsilon1();
-	double epsilon2 = supervoxel->getEpsilon2();
 	Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
 	Eigen::Vector4f supervoxelMean = supervoxel->getCentroid();
 
-	double normal3DConstant = NORMAL_3D_CONSTANT;
-
-	double c2 = epsilon2 * PROBABILITY_OUTLIERS_SUPERVOXEL;
-	double c1 = epsilon1 * normal3DConstant / sqrt (supervoxelCovariance.determinant()) ;
-
-	double d3 = -log(c2);
-	double d1 = -log(c1 + c2) -d3;
-	double d2 = -2 * log( (-log(c1 * NSQRT_EXP + c2) - d3) / d1);
-
-	Eigen::Matrix3f supervoxelCovarianceInverse = supervoxelCovariance.inverse();
+	double d1 = supervoxel->getD1();
+	double d2 = supervoxel->getD2();
+	Eigen::Matrix3f supervoxelCovarianceInverse = supervoxel->getCovarianceInverse();
 
 	SData::VoxelVectorPtr voxels = supervoxel->getVoxelBVector();
 	SData::VoxelVector::iterator vxlItr;
@@ -373,8 +343,6 @@ void fdf (const gsl_vector *pose, void *params, double *fCost, gsl_vector *df) {
 	for (svItr = SVMapping->begin(); svItr != SVMapping->end(); ++svItr) {
 		SData::Ptr supervoxel = svItr->second;
 		computeSupervoxelFdf(supervoxel, transformedScan2, pose, df, fCost);
-//		computeSupervoxelDfCost(supervoxel, transformedScan2, pose, df);
-//		*fCost += computeSupervoxelFCost(supervoxel, transformedScan2);
 	}
 
 	clock_t end = svr_util::getClock();
@@ -410,7 +378,7 @@ optimize(svr_opti_data opt_data) {
 	bool debug = true;
 	int max_iter = 20;
 	double line_search_tol = .02;
-	double gradient_tol = 5e-2;
+	double gradient_tol = 1e-1;
 	double step_size = 1.;
 
 	// set up the gsl function_fdf struct

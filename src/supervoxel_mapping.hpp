@@ -121,33 +121,33 @@ public:
 		return voxelsB;
 	}
 
-	Eigen::Vector3f
+	Eigen::Vector3f&
 	getNormal() {
 		return normal;
 	}
 
 	void
-	setNormal(Eigen::Vector3f n) {
+	setNormal(Eigen::Vector3f& n) {
 		normal = n;
 	}
 
 	void
-    setCentroid(Eigen::Vector4f c) {
+    setCentroid(Eigen::Vector4f& c) {
         centroid = c;
 	}
 
-    Eigen::Vector4f
+    Eigen::Vector4f&
 	getCentroid() {
 		return centroid;
 	}
 
-    Eigen::Matrix3f
+    Eigen::Matrix3f&
     getCovariance() {
         return covariance;
     }
     
     void
-    setCovariance(Eigen::Matrix3f cov) {
+    setCovariance(Eigen::Matrix3f& cov) {
         covariance = cov;
     }
     
@@ -198,17 +198,51 @@ public:
 		this->epsilon2 = epsilon2;
 	}
 
+	const Eigen::Matrix3f& getCovarianceInverse() const {
+		return covarianceInverse;
+	}
+
+	void setCovarianceInverse(const Eigen::Matrix3f& covarianceInverse) {
+		this->covarianceInverse = covarianceInverse;
+	}
+
+	double getD1() const {
+		return d1;
+	}
+
+	void setD1(double d1) {
+		this->d1 = d1;
+	}
+
+	double getD2() const {
+		return d2;
+	}
+
+	void setD2(double d2) {
+		this->d2 = d2;
+	}
+
+	double getD3() const {
+		return d3;
+	}
+
+	void setD3(double d3) {
+		this->d3 = d3;
+	}
+
 private:
 
 	int label;
 	double epsilon1;
 	double epsilon2;
+	double d1, d2, d3;
 
 	VoxelVectorPtr voxelsA;
 	VoxelVectorPtr voxelsB;
 	int pointACount;
 	int pointBCount;
 
+	Eigen::Matrix3f covarianceInverse;
     Eigen::Matrix3f covariance;
     Eigen::Vector4f centroid;
 	Eigen::Vector3f normal;

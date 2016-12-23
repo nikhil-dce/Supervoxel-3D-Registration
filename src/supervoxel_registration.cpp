@@ -465,6 +465,40 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
         }
 
     }
+
+    cout << "Precomputing supervoxel function constants d1, d2, d3 and convariance inverse " << endl;
+    // No need seperate loop for this
+
+    for (svItr = supervoxelMap.begin(); svItr != supervoxelMap.end(); ++svItr) {
+
+    	int svLabel = svItr->first;
+    	SData::Ptr supervoxel = svItr->second;
+
+    	Eigen::Vector4f supervoxelCentroid = supervoxel->getCentroid();
+    	Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
+
+    	double normal3DConstant = NORMAL_3D_CONSTANT;
+
+    	double epsilon1 = supervoxel->getEpsilon1();
+    	double epsilon2 = supervoxel->getEpsilon2();
+
+    	double c2 = epsilon2 * PROBABILITY_OUTLIERS_SUPERVOXEL;
+    	double c1 = epsilon1 * normal3DConstant / sqrt (supervoxelCovariance.determinant()) ;
+
+    	double d3 = -log(c2);
+    	double d1 = -log(c1 + c2) -d3;
+    	double d2 = -2 * log( (-log(c1 * NSQRT_EXP + c2) - d3) / d1);
+
+    	Eigen::Matrix3f supervoxelCovarianceInverse = supervoxelCovariance.inverse();
+
+    	supervoxel->setD1(d1);
+    	supervoxel->setD2(d2);
+    	supervoxel->setD3(d3);
+    	supervoxel->setCovarianceInverse(supervoxelCovarianceInverse);
+
+    }
+
+
 }
 
 void
