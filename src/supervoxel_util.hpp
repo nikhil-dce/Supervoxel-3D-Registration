@@ -1,5 +1,5 @@
-#ifndef svr_util_hpp
-#define svr_util_hpp
+#ifndef SVR_UTIL_HPP
+#define SVR_UTIL_HPP
 
 #define NORMAL_3D_CONSTANT 0.063493636
 #define INTEGRAL_STEP 0.2
@@ -18,7 +18,7 @@ inline Type cube(Type x)
     return x * x * x; // will only work on types for which there is the * operator.
 }
     
-void
+void inline
 transform_get_translation_from_affine(Eigen::Affine3d& t, double *x, double *y, double *z) {
 
 	*x = t(0,3);
@@ -27,7 +27,7 @@ transform_get_translation_from_affine(Eigen::Affine3d& t, double *x, double *y, 
 
 }
 
-void
+void inline
 transform_get_rotation_from_affine(Eigen::Affine3d& t, double *x, double *y, double *z) {
 
 	double a = t(2,1);
@@ -42,7 +42,7 @@ transform_get_rotation_from_affine(Eigen::Affine3d& t, double *x, double *y, dou
 
 }
     
-double calculateNormalProbabilityForPoint(float x, float y, float z, Eigen::Matrix3f covariance, Eigen::Vector4f mean) {
+double inline calculateNormalProbabilityForPoint(float x, float y, float z, Eigen::Matrix3f& covariance, Eigen::Vector4f& mean) {
     
     double probability;
     
@@ -60,7 +60,7 @@ double calculateNormalProbabilityForPoint(float x, float y, float z, Eigen::Matr
     return probability;
 }
 
-double calculateApproximateIntegralForVoxel(float ax, float bx, float ay, float by, float az, float bz, Eigen::Matrix3f covariance, Eigen::Vector4f mean) {
+double inline calculateApproximateIntegralForVoxel(float ax, float bx, float ay, float by, float az, float bz, Eigen::Matrix3f& covariance, Eigen::Vector4f& mean) {
 
 	if (covariance.determinant() == 0)
 		return 0;

@@ -4,9 +4,11 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <fstream>
+#include <boost/unordered_map.hpp>
+
 #include "supervoxel_cluster_search.h"
 #include "supervoxel_mapping.hpp"
-#include <boost/unordered_map.hpp>
+#include "supervoxel_util.hpp"
 
 #define SEARCH_SUPERVOXEL_NN 20;
 #define NORM_VR 0.1
@@ -79,6 +81,11 @@ public:
 		debug = d;
 	}
 
+	void
+	setApproximate(bool a) {
+		appx = a;
+	}
+
 protected:
 
 	std::map <uint32_t, pcl::Supervoxel<PointT>::Ptr>
@@ -121,7 +128,7 @@ private:
 		file.close();
 	}
 
-	bool debug;
+	bool debug, appx;
 	SupervoxelClusteringT supervoxelClustering;
 	SVMap supervoxelMap;
 	LabeledLeafMapT leafMapping;

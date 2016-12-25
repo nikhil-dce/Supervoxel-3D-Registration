@@ -61,9 +61,9 @@ SupervoxelRegistration::setScans(PointCloudT::Ptr scanA, PointCloudT::Ptr scanB)
 void
 SupervoxelRegistration::prepareForRegistration() {
 		std::map <uint32_t, pcl::Supervoxel<PointT>::Ptr> supervoxelClusters = initializeVoxels();
-		std::cout << "Number of supervoxels: " << supervoxelMap.size() << std::endl;
 		createSuperVoxelMappingForScan1();
 		createKDTreeForSupervoxels();
+		std::cout << "Number of supervoxels: " << supervoxelMap.size() << std::endl;
 }
 
 // Return trans
@@ -72,6 +72,10 @@ SupervoxelRegistration::alignScans() {
 
 	prepareForRegistration();
 
+	if (appx)
+		cout << "Approximation Enabled" << endl;
+	else
+		cout << "Approximation not enabled" << endl;
 	cout << "Debug Mode: Preparation Complete" << endl;
 
 	Eigen::Affine3d trans_last = Eigen::Affine3d::Identity();
@@ -104,6 +108,7 @@ SupervoxelRegistration::alignScans() {
 		opti_data.scan2 = B;
 		opti_data.svMap = &supervoxelMap;
 		opti_data.t = trans_last;
+		opti_data.approx = appx;
 
 		trans_new = optimize(opti_data);
 

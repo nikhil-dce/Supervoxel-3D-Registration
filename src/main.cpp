@@ -1,5 +1,4 @@
 #include <string>
-#include "supervoxel_registration.h"
 #include <boost/program_options.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/format.hpp>
@@ -8,6 +7,9 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+
+#include "supervoxel_registration.h"
+#include "supervoxel_util.hpp"
 
 struct options {
 
@@ -18,6 +20,7 @@ struct options {
 	float normalWeight;
 	int test;
 	bool showScans;
+	bool approx;
 
 } programOptions;
 
@@ -32,6 +35,7 @@ int initOptions(int argc, char* argv[]) {
 	programOptions.sr = 5.0f;
 	programOptions.test = 0; // 324 // 607
 	programOptions.showScans = false;
+	programOptions.approx = false;
 
 	po::options_description desc ("Allowed Options");
 
@@ -43,7 +47,8 @@ int initOptions(int argc, char* argv[]) {
 					("spatial_weight,z", po::value<float>(&programOptions.spatialWeight), "spatial weight")
 					("normal_weight,n", po::value<float>(&programOptions.normalWeight), "normal weight")
 					("test,t", po::value<int>(&programOptions.test), "test")
-					("show_scan,y", po::value<bool>(&programOptions.showScans), "Show scans");
+					("show_scan,y", po::value<bool>(&programOptions.showScans), "Show scans")
+					("approximate,p", po::value<bool>(&programOptions.approx), "Approximate angles");
 
 	po::variables_map vm;
 
@@ -148,6 +153,7 @@ main (int argc, char *argv[]) {
 
 	svr::SupervoxelRegistration supervoxelRegistration (programOptions.vr, programOptions.sr);
 	supervoxelRegistration.setDebug(true);
+	supervoxelRegistration.setApproximate(programOptions.approx);
 	supervoxelRegistration.setScans(scanA, scanB);
 
 	if (programOptions.test != 0 || programOptions.showScans) {
@@ -164,17 +170,25 @@ main (int argc, char *argv[]) {
 	} else {
 
 		std::cout << "Alignment Scan" << std::endl;
+		clock_t start = svr_util::getClock();
 
 		// begin registration
 		Eigen::Matrix4d result = supervoxelRegistration.alignScans();
 
 		// clear string
 		ss.str(std::string());
-		ss << dataDir << "trans_result";
+		if (programOptions.approx)
+			ss << dataDir << "trans_result_approx_" << s1 << "_" << s2;
+		else
+			ss << dataDir << "trans_result_" << s1 << "_" << s2;
 		std::string transResultFile = ss.str();
 		std::ofstream fout(transResultFile.c_str());
 		fout << result;
 		fout.close();
+
+		clock_t end = svr_util::getClock();
+		std::cout << "Total time: " << svr_util::getClockTime(start, end) << std::endl;
+
 	}
 
 }

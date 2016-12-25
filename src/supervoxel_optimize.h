@@ -11,7 +11,6 @@
 #define svr_optimize_h
 
 #include "supervoxel_registration.h"
-#include "supervoxel_util.hpp"
 
 #include <gsl/gsl_multimin.h>
 #include <pcl/common/transforms.h>
@@ -25,6 +24,7 @@ struct svr_opti_data {
 	svr::SVMap* svMap;
 	svr::PointCloudT::Ptr scan2;
 	Eigen::Affine3d t;
+	bool approx;
 };
 
 // Magnusson
@@ -127,7 +127,7 @@ double f (const gsl_vector *pose, void* params) {
 	return cost;
 }
 
-void inline computePointDfCost (svr::PointT p, Eigen::Vector4f& mean, Eigen::Matrix3f& covarianceInv, double d1, double d2, const gsl_vector* pose, gsl_vector* df) {
+void inline computePointDfCost (svr::PointT p, Eigen::Vector4f& mean, Eigen::Matrix3f& covarianceInv, double d1, double d2, const gsl_vector* pose, gsl_vector* df, bool appx) {
 
 	Eigen::Vector3f X;
 	X << p.x, p.y, p.z;
@@ -143,35 +143,35 @@ void inline computePointDfCost (svr::PointT p, Eigen::Vector4f& mean, Eigen::Mat
 	pitch = gsl_vector_get(pose, 4);
 	yaw = gsl_vector_get(pose, 5);
 
-	double cx = cos(roll);
-	double sx = sin(roll);
-	double cy = cos(pitch);
-	double sy = sin(pitch);
-	double cz = cos(yaw);
-	double sz = sin(yaw);
-
-//	double a = (X(0) - U(0)) * (-sx*sz + cx*sy*cz) + (X(1) - U(1)) * (-sx*cz - cx*sy*sz) + (X(2) - U(2)) * (-cx*cy);
-//	double b = (X(0) - U(0)) * (cx*sz + sx*sy*cz) + (X(1) - U(1)) * (-sx*sy*sz + cx*cz) + (X(2) - U(2)) * (-sx*cy);
-//	double c = (X(0) - U(0)) * (-sy*cz) + (X(1) - U(1)) * (sy*sz) + (X(2) - U(2)) * cy;
-//	double d = (X(0) - U(0)) * (sx*cy*cz) + (X(1) - U(1)) * (-sx*cy*sz) + (X(2) - U(2)) * (sx*sy);
-//	double e = (X(0) - U(0)) * (-cx*cy*cz) + (X(1) - U(1)) * (cx*cy*sz) + (X(2) - U(2)) * (-cx*sy);
-//	double f = (X(0) - U(0)) * (-cy*sz) + (X(1) - U(1)) * (-cy*cz);
-//	double g = (X(0) - U(0)) * (cx*cz - sx*sy*sz) + (X(1) - U(1)) * (-cx*sz - sx*sy*cz);
-//	double h = (X(0)- U(0)) * (sx*cz + cx*sy*sz) + (X(1) - U(1)) * (cx*sy*cz - sx*sz);
-
-	double a = X(0) * (-sx*sz + cx*sy*cz)	+	X(1) * (-sx*cz - cx*sy*sz) 	+	X(2) * (-cx*cy);
-	double b = X(0) * (cx*sz + sx*sy*cz) 	+	X(1) * (-sx*sy*sz + cx*cz) 	+ 	X(2) * (-sx*cy);
-	double c = X(0) * (-sy*cz) 			 	+ 	X(1) * (sy*sz) 				+ 	X(2) * cy;
-	double d = X(0) * (sx*cy*cz) 		 	+	X(1) * (-sx*cy*sz) 			+ 	X(2) * (sx*sy);
-	double e = X(0) * (-cx*cy*cz)        	+  	X(1) * (cx*cy*sz) 			+ 	X(2) * (-cx*sy);
-	double f = X(0) * (-cy*sz) 			 	+ 	X(1) * (-cy*cz);
-	double g = X(0) * (cx*cz - sx*sy*sz) 	+ 	X(1) * (-cx*sz - sx*sy*cz);
-	double h = X(0) * (sx*cz + cx*sy*sz) 	+ 	X(1) * (cx*sy*cz - sx*sz);
-
 	Eigen::MatrixXf Jacobian (3,6);
-	Jacobian << 1,0,0,0,c,f,
+
+	if (appx) {
+
+		Jacobian << 1,0,0,0,X(2),-X(1),
+				0,1,0,-X(2),0,X(0),
+				0,0,1,X(1),-X(0),0;
+
+	} else {
+		double cx = cos(roll);
+		double sx = sin(roll);
+		double cy = cos(pitch);
+		double sy = sin(pitch);
+		double cz = cos(yaw);
+		double sz = sin(yaw);
+
+		double a = X(0) * (-sx*sz + cx*sy*cz)	+	X(1) * (-sx*cz - cx*sy*sz) 	+	X(2) * (-cx*cy);
+		double b = X(0) * (cx*sz + sx*sy*cz) 	+	X(1) * (-sx*sy*sz + cx*cz) 	+ 	X(2) * (-sx*cy);
+		double c = X(0) * (-sy*cz) 			 	+ 	X(1) * (sy*sz) 				+ 	X(2) * cy;
+		double d = X(0) * (sx*cy*cz) 		 	+	X(1) * (-sx*cy*sz) 			+ 	X(2) * (sx*sy);
+		double e = X(0) * (-cx*cy*cz)        	+  	X(1) * (cx*cy*sz) 			+ 	X(2) * (-cx*sy);
+		double f = X(0) * (-cy*sz) 			 	+ 	X(1) * (-cy*cz);
+		double g = X(0) * (cx*cz - sx*sy*sz) 	+ 	X(1) * (-cx*sz - sx*sy*cz);
+		double h = X(0) * (sx*cz + cx*sy*sz) 	+ 	X(1) * (cx*sy*cz - sx*sz);
+
+		Jacobian << 1,0,0,0,c,f,
 				0,1,0,a,d,g,
 				0,0,1,b,e,h;
+	}
 
 	float power = (X-U).transpose() * covarianceInv * (X-U);
 	power = -d2 * power / 2;
@@ -199,7 +199,7 @@ void inline computePointDfCost (svr::PointT p, Eigen::Vector4f& mean, Eigen::Mat
 	gsl_vector_add(df, pointDf);
 }
 
-void computeSupervoxelDfCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, const gsl_vector* pose, gsl_vector* df) {
+void computeSupervoxelDfCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, const gsl_vector* pose, gsl_vector* df, bool appx) {
 
 	Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
 	Eigen::Vector4f supervoxelMean = supervoxel->getCentroid();
@@ -220,7 +220,7 @@ void computeSupervoxelDfCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, 
 		for (itr = indices->begin(); itr != indices->end(); ++itr) {
 			int index = *itr;
 			svr::PointT p = scan->at(index);
-			computePointDfCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2, pose, df);
+			computePointDfCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2, pose, df, appx);
 		}
 
 	}
@@ -248,6 +248,7 @@ void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 	svr::PointCloudT::Ptr scan2 = optiData->scan2;
 	svr::PointCloudT::Ptr transformedScan2 =  boost::shared_ptr<svr::PointCloudT>(new svr::PointCloudT());
 	svr::SVMap* SVMapping = optiData->svMap;
+	bool appx = optiData->approx;
 
 	// Create Transformation
 	Eigen::Affine3d transform = Eigen::Affine3d::Identity();
@@ -262,7 +263,7 @@ void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 	svr::SVMap::iterator svItr;
 	for (svItr = SVMapping->begin(); svItr != SVMapping->end(); ++svItr) {
 		SData::Ptr supervoxel = svItr->second;
-		computeSupervoxelDfCost(supervoxel, transformedScan2, pose, df);
+		computeSupervoxelDfCost(supervoxel, transformedScan2, pose, df, appx);
 	}
 
 	clock_t end = svr_util::getClock();
@@ -277,7 +278,7 @@ void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 
 }
 
-void computeSupervoxelFdf(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, const gsl_vector* pose, gsl_vector* df, double* fCost) {
+void computeSupervoxelFdf(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, const gsl_vector* pose, gsl_vector* df, double* fCost, bool appx) {
 
 	Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
 	Eigen::Vector4f supervoxelMean = supervoxel->getCentroid();
@@ -299,7 +300,7 @@ void computeSupervoxelFdf(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, con
 		for (itr = indices->begin(); itr != indices->end(); ++itr) {
 			int index = *itr;
 			svr::PointT p = scan->at(index);
-			computePointDfCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2, pose, df);
+			computePointDfCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2, pose, df, appx);
 			*fCost += computePointFCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2);
 		}
 
@@ -328,6 +329,7 @@ void fdf (const gsl_vector *pose, void *params, double *fCost, gsl_vector *df) {
 	svr::PointCloudT::Ptr scan2 = optiData->scan2;
 	svr::PointCloudT::Ptr transformedScan2 =  boost::shared_ptr<svr::PointCloudT>(new svr::PointCloudT());
 	svr::SVMap* SVMapping = optiData->svMap;
+	bool appx = optiData->approx;
 
 	// Create Transformation
 	Eigen::Affine3d transform = Eigen::Affine3d::Identity();
@@ -342,7 +344,7 @@ void fdf (const gsl_vector *pose, void *params, double *fCost, gsl_vector *df) {
 	svr::SVMap::iterator svItr;
 	for (svItr = SVMapping->begin(); svItr != SVMapping->end(); ++svItr) {
 		SData::Ptr supervoxel = svItr->second;
-		computeSupervoxelFdf(supervoxel, transformedScan2, pose, df, fCost);
+		computeSupervoxelFdf(supervoxel, transformedScan2, pose, df, fCost, appx);
 	}
 
 	clock_t end = svr_util::getClock();
