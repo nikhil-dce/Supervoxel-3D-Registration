@@ -26,6 +26,7 @@
 
 namespace svr {
 
+bool static _SVR_DEBUG_ = true;
 typedef pcl::PointXYZRGBA PointT;
 typedef pcl::PointCloud<PointT> PointCloudT;
 typedef pcl::SupervoxelClustering<PointT> SupervoxelClusteringT;
@@ -78,7 +79,7 @@ public:
 
 	void
 	setDebug(bool d) {
-		debug = d;
+		_SVR_DEBUG_ = d;
 	}
 
 	void

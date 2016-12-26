@@ -37,7 +37,7 @@ SupervoxelRegistration::SupervoxelRegistration(float voxelR, float seedR):
 	sr (seedR),
 	octree_bounds_()
 {
-
+	appx = false;
 	debug = false;
 	octree_bounds_.minPt.x = -120;
 	octree_bounds_.minPt.y = -120;
@@ -63,7 +63,8 @@ SupervoxelRegistration::prepareForRegistration() {
 		std::map <uint32_t, pcl::Supervoxel<PointT>::Ptr> supervoxelClusters = initializeVoxels();
 		createSuperVoxelMappingForScan1();
 		createKDTreeForSupervoxels();
-		std::cout << "Number of supervoxels: " << supervoxelMap.size() << std::endl;
+		if (_SVR_DEBUG_)
+			std::cout << "Number of supervoxels: " << supervoxelMap.size() << std::endl;
 }
 
 // Return trans
@@ -72,11 +73,13 @@ SupervoxelRegistration::alignScans() {
 
 	prepareForRegistration();
 
-	if (appx)
-		cout << "Approximation Enabled" << endl;
-	else
-		cout << "Approximation not enabled" << endl;
-	cout << "Debug Mode: Preparation Complete" << endl;
+	if (svr::_SVR_DEBUG_) {
+		if (appx)
+			cout << "Approximation Enabled" << endl;
+		else
+			cout << "Approximation not enabled" << endl;
+		cout << "Debug Mode: Preparation Complete" << endl;
+	}
 
 	Eigen::Affine3d trans_last = Eigen::Affine3d::Identity();
 	Eigen::Affine3d trans_new;
@@ -93,15 +96,16 @@ SupervoxelRegistration::alignScans() {
 	while (!converged) {
 
 		// transform point cloud using trans_last
-
+		// TODO also transform the normals associated with points
 		transformPointCloud (*B, *transformedScan2, trans_last);
+		// TODO use new normals for mapping
 		createSuperVoxelMappingForScan2(transformedScan2);
 
-		cout << "Debug Mode: Printing supervoxel Map..." << endl;
-
-		printSupervoxelMap();
-
-		cout << "Iteration " << iteration+1 << " ..." << endl;
+		if (svr::_SVR_DEBUG_) {
+			cout << "Debug Mode: Printing supervoxel Map..." << endl;
+			printSupervoxelMap();
+			cout << "Iteration " << iteration+1 << " ..." << endl;
+		}
 
 		svr_optimize::svr_opti_data opti_data;
 //		opti_data.scan1 = A;
@@ -136,7 +140,8 @@ SupervoxelRegistration::alignScans() {
 
 		/* check convergence */
 		iteration++;
-		cout << "Iteration: " << iteration << " delta = " << delta << endl;
+		if (_SVR_DEBUG_)
+			cout << "Iteration: " << iteration << " delta = " << delta << endl;
 
 		if(iteration >= maxIteration || delta < 1) {
 			converged = true;
@@ -148,8 +153,10 @@ SupervoxelRegistration::alignScans() {
 	// Save transformation in a file
 
 	Eigen::Matrix4d result = trans_new.inverse().matrix();
-	cout << "Resultant Transformation: " << endl << result;
-	cout << endl;
+	if (_SVR_DEBUG_) {
+		cout << "Resultant Transformation: " << endl << result;
+		cout << endl;
+	}
 
 	return result;
 
@@ -278,9 +285,11 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 		voxel->setCentroidCloudIndex(centroidCloudCounter);
 	}
 
-	cout << "Finding mapping " << endl;
-	cout << "Total leaves: " << leafVoxelMap.size() << endl;
-	cout << "Total leaves with supervoxels " << leafMapping.size() << endl;
+	if (_SVR_DEBUG_) {
+		cout << "Finding mapping " << endl;
+		cout << "Total leaves: " << leafVoxelMap.size() << endl;
+		cout << "Total leaves with supervoxels " << leafMapping.size() << endl;
+	}
 
 	int leavesNotFoundWithSupervoxel = 0;
 	for (leafVoxelItr = leafVoxelMap.begin(); leafVoxelItr != leafVoxelMap.end(); ++leafVoxelItr) {
@@ -340,11 +349,14 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 
 	}
 
-	cout << "scan 1 leaves without supervoxel: " << leavesNotFoundWithSupervoxel << endl;
+	if (_SVR_DEBUG_)
+		cout << "scan 1 leaves without supervoxel: " << leavesNotFoundWithSupervoxel << endl;
 
 	leafVoxelMap.clear();
 
-	cout<<"Finding supervoxel normals " << endl;
+	if (_SVR_DEBUG_)
+		cout<<"Finding supervoxel normals " << endl;
+
 	// calculating supervoxel normal, centroid and covariance
 	SVMap::iterator svItr;
 	std::vector<int> labelsToRemove;
@@ -407,7 +419,9 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 
 	}
     
-	cout << "Debug Mode: Removing supervoxels with points less than " << MIN_POINTS_IN_SUPERVOXEL << endl;
+	if (_SVR_DEBUG_)
+		cout << "Debug Mode: Removing supervoxels with points less than " << MIN_POINTS_IN_SUPERVOXEL << endl;
+
 	// Remove labels in labelsToRemove
 	std::vector<int>::iterator itr = labelsToRemove.begin();
 	for (; itr != labelsToRemove.end(); itr ++) {
@@ -417,8 +431,8 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 
     // Covariance and mean calculated
     
-    
-	cout << "Calculating supervoxel data - covariance, mean, epsilon1 and epsilon2" << endl;
+	if (_SVR_DEBUG_)
+		cout << "Calculating supervoxel data - covariance, mean, epsilon1 and epsilon2" << endl;
     // Calculate Epsilon1 and Epsilon2 for each supervoxel where
     // TotalSupervoxelProbability = Epsilon1 * ProbabilityFromNaturalDistribution + Epsilon2 * ProbabilityFromOutilers
     // Epsilon1 + Epsilon2 = 1
@@ -455,14 +469,6 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
         supervoxel->setEpsilon1(epsilon1);
         supervoxel->setEpsilon2(epsilon2);
 
-        if (svLabel == 515 || svLabel == 487 || svLabel == 536) {
-
-        	cout << "Label: " << svLabel << endl;
-        	cout << "Covariance: " << endl << supervoxelCovariance << endl;
-        	cout << "Mean: " << endl << supervoxelCentroid << endl;
-
-        }
-
         if (epsilon1 > 1 || epsilon2 > 1) {
         	cout << "Supervoxel Label: " << svLabel << " Points: " << supervoxel->getPointACount() <<  " Voxels: " << voxels->size() << endl;
         	cout << "Epsilon 1: " << epsilon1 << endl;
@@ -471,7 +477,8 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 
     }
 
-    cout << "Precomputing supervoxel function constants d1, d2, d3 and convariance inverse " << endl;
+    if (_SVR_DEBUG_)
+    	cout << "Precomputing supervoxel function constants d1, d2, d3 and convariance inverse " << endl;
     // No need seperate loop for this
 
     for (svItr = supervoxelMap.begin(); svItr != supervoxelMap.end(); ++svItr) {
@@ -518,7 +525,8 @@ SupervoxelRegistration::createSuperVoxelMappingForScan2 (PointCloudT::Ptr transf
 			octree_bounds_.maxPt.x, octree_bounds_.maxPt.y, octree_bounds_.maxPt.z);
 	adjTree2->addPointsFromInputCloud();
 
-	cout << "Adjacency Octree Created for scan2 after transformation" << endl;
+	if (_SVR_DEBUG_)
+		cout << "Adjacency Octree Created for scan2 after transformation" << endl;
 
 	SVMap::iterator svItr;
 
@@ -729,10 +737,8 @@ SupervoxelRegistration::createSuperVoxelMappingForScan2 (PointCloudT::Ptr transf
 	// end supervoxel iteration
 	leafVoxelMap.clear();
 
-	if (debug) {
+	if (svr::_SVR_DEBUG_)
 		calculateSupervoxelScanBData();
-	}
-
 }
 
 void

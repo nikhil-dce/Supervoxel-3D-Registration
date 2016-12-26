@@ -86,7 +86,9 @@ double computeSupervoxelFCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan)
 
 double f (const gsl_vector *pose, void* params) {
 
-	cout << "Calculating f" << endl;
+	if (svr::_SVR_DEBUG_)
+		cout << "Calculating f" << endl;
+
 	clock_t start = svr_util::getClock();
 
 	// Initialize All Data
@@ -122,7 +124,8 @@ double f (const gsl_vector *pose, void* params) {
 	}
 
 	clock_t end = svr_util::getClock();
-	std::cout << "f: " << svr_util::getClockTime(start, end) << std::endl;
+	if (svr::_SVR_DEBUG_)
+		std::cout << "f: " << svr_util::getClockTime(start, end) << std::endl;
 
 	return cost;
 }
@@ -231,7 +234,9 @@ void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 
 	gsl_vector_set_zero(df);
 
-	cout << "Calculating df" << endl;
+	if (svr::_SVR_DEBUG_)
+		cout << "Calculating df" << endl;
+
 	clock_t start = svr_util::getClock();
 
 	// Initialize All Data
@@ -268,13 +273,8 @@ void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 
 	clock_t end = svr_util::getClock();
 
-	std::cout << "df: " << svr_util::getClockTime(start, end) << std::endl;
-//	std::cout << gsl_vector_get(df, 0) << std::endl;
-//	std::cout << gsl_vector_get(df, 1) << std::endl;
-//	std::cout << gsl_vector_get(df, 2) << std::endl;
-//	std::cout << gsl_vector_get(df, 3) << std::endl;
-//	std::cout << gsl_vector_get(df, 4) << std::endl;
-//	std::cout << gsl_vector_get(df, 5) << std::endl;
+	if (svr::_SVR_DEBUG_)
+		std::cout << "df: " << svr_util::getClockTime(start, end) << std::endl;
 
 }
 
@@ -312,7 +312,9 @@ void fdf (const gsl_vector *pose, void *params, double *fCost, gsl_vector *df) {
 
 	gsl_vector_set_zero(df);
 
-	cout << "Calculating fdf" << endl;
+	if (svr::_SVR_DEBUG_)
+		cout << "Calculating fdf" << endl;
+
 	clock_t start = svr_util::getClock();
 
 	// Initialize All Data
@@ -349,15 +351,18 @@ void fdf (const gsl_vector *pose, void *params, double *fCost, gsl_vector *df) {
 
 	clock_t end = svr_util::getClock();
 
-	cout << "fdf " << svr_util::getClockTime(start, end) << std::endl;
-	cout << "F: " << *fCost << std::endl;
-	std::cout << "df: " << std::endl;
-	std::cout << gsl_vector_get(df, 0) << std::endl;
-	std::cout << gsl_vector_get(df, 1) << std::endl;
-	std::cout << gsl_vector_get(df, 2) << std::endl;
-	std::cout << gsl_vector_get(df, 3) << std::endl;
-	std::cout << gsl_vector_get(df, 4) << std::endl;
-	std::cout << gsl_vector_get(df, 5) << std::endl;
+	if (svr::_SVR_DEBUG_) {
+		cout << "fdf " << svr_util::getClockTime(start, end) << std::endl;
+		cout << "F: " << *fCost << std::endl;
+		std::cout << "df: " << std::endl;
+		std::cout << gsl_vector_get(df, 0) << std::endl;
+		std::cout << gsl_vector_get(df, 1) << std::endl;
+		std::cout << gsl_vector_get(df, 2) << std::endl;
+		std::cout << gsl_vector_get(df, 3) << std::endl;
+		std::cout << gsl_vector_get(df, 4) << std::endl;
+		std::cout << gsl_vector_get(df, 5) << std::endl;
+	}
+
 }
 
 const char* Status(int status) { return gsl_strerror(status); }
@@ -423,8 +428,10 @@ optimize(svr_opti_data opt_data) {
 
 	if (status == GSL_SUCCESS || iter == max_iter) {
 
-		cout << "Cost: " << gsl_minimizer->f << " Iteration: " << iter << endl;
-		cout << "Converged to minimum at " << endl;
+		if (svr::_SVR_DEBUG_) {
+			cout << "Cost: " << gsl_minimizer->f << " Iteration: " << iter << endl;
+			cout << "Converged to minimum at " << endl;
+		}
 
 		double tx = gsl_vector_get (gsl_minimizer->x, 0);
 		double ty = gsl_vector_get (gsl_minimizer->x, 1);
@@ -433,12 +440,14 @@ optimize(svr_opti_data opt_data) {
 		double pitch = gsl_vector_get (gsl_minimizer->x, 4);
 		double yaw = gsl_vector_get (gsl_minimizer->x, 5);
 
-		cout << "Tx: " << tx << endl;
-		cout << "Ty: " << ty << endl;
-		cout << "Tz: " << tz << endl;
-		cout << "Roll: " << roll << endl;
-		cout << "Pitch: " << pitch << endl;
-		cout << "Yaw: " << yaw << endl;
+		if (svr::_SVR_DEBUG_) {
+			cout << "Tx: " << tx << endl;
+			cout << "Ty: " << ty << endl;
+			cout << "Tz: " << tz << endl;
+			cout << "Roll: " << roll << endl;
+			cout << "Pitch: " << pitch << endl;
+			cout << "Yaw: " << yaw << endl;
+		}
 
 		Eigen::Affine3d resultantTransform = Eigen::Affine3d::Identity();
 		resultantTransform.translation() << tx, ty, tz;
@@ -453,8 +462,10 @@ optimize(svr_opti_data opt_data) {
 
 	} else if (status == GSL_ENOPROG) {
 
-		cout << "Cost: " << gsl_minimizer->f << " Iteration: " << iter << endl;
-		cout << "Not making any progress " << endl;
+		if (svr::_SVR_DEBUG_) {
+			cout << "Cost: " << gsl_minimizer->f << " Iteration: " << iter << endl;
+			cout << "Not making any progress " << endl;
+		}
 
 		double tx = gsl_vector_get (gsl_minimizer->x, 0);
 		double ty = gsl_vector_get (gsl_minimizer->x, 1);
@@ -463,12 +474,14 @@ optimize(svr_opti_data opt_data) {
 		double pitch = gsl_vector_get (gsl_minimizer->x, 4);
 		double yaw = gsl_vector_get (gsl_minimizer->x, 5);
 
-		cout << "Tx: " << tx << endl;
-		cout << "Ty: " << ty << endl;
-		cout << "Tz: " << tz << endl;
-		cout << "Roll: " << roll << endl;
-		cout << "Pitch: " << pitch << endl;
-		cout << "Yaw: " << yaw << endl;
+		if (svr::_SVR_DEBUG_) {
+			cout << "Tx: " << tx << endl;
+			cout << "Ty: " << ty << endl;
+			cout << "Tz: " << tz << endl;
+			cout << "Roll: " << roll << endl;
+			cout << "Pitch: " << pitch << endl;
+			cout << "Yaw: " << yaw << endl;
+		}
 
 		Eigen::Affine3d resultantTransform = Eigen::Affine3d::Identity();
 		resultantTransform.translation() << tx, ty, tz;
@@ -482,7 +495,9 @@ optimize(svr_opti_data opt_data) {
 		return resultantTransform;
 	}
 
-	std::cout << "Algorithm failed to converge" << std::endl;
+	if (svr::_SVR_DEBUG_)
+		std::cout << "Algorithm failed to converge" << std::endl;
+
 	gsl_vector_free(baseX);
 	gsl_multimin_fdfminimizer_free(gsl_minimizer);
 

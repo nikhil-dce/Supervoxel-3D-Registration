@@ -12,7 +12,6 @@
 #include "supervoxel_util.hpp"
 
 struct options {
-
 	float vr;
 	float sr;
 	float colorWeight;
@@ -21,7 +20,9 @@ struct options {
 	int test;
 	bool showScans;
 	bool approx;
-
+	std::string dataDir;
+	std::string transformFile;
+	bool debug;
 } programOptions;
 
 int initOptions(int argc, char* argv[]) {
@@ -36,6 +37,9 @@ int initOptions(int argc, char* argv[]) {
 	programOptions.test = 0; // 324 // 607
 	programOptions.showScans = false;
 	programOptions.approx = false;
+	programOptions.dataDir = "../data/";
+	programOptions.transformFile = "trans_base";
+	programOptions.debug = false;
 
 	po::options_description desc ("Allowed Options");
 
@@ -48,7 +52,10 @@ int initOptions(int argc, char* argv[]) {
 					("normal_weight,n", po::value<float>(&programOptions.normalWeight), "normal weight")
 					("test,t", po::value<int>(&programOptions.test), "test")
 					("show_scan,y", po::value<bool>(&programOptions.showScans), "Show scans")
-					("approximate,p", po::value<bool>(&programOptions.approx), "Approximate angles");
+					("data_dir", po::value<std::string>(&programOptions.dataDir), "Data Directory for the transformation")
+					("transform_file,f", po::value<std::string>(&programOptions.transformFile), "Transform file name")
+					("approximate,p", po::value<bool>(&programOptions.approx), "Approximate angles")
+					("debug,d", po::value<bool>(&programOptions.debug), "Debug");
 
 	po::variables_map vm;
 
@@ -60,11 +67,13 @@ int initOptions(int argc, char* argv[]) {
 		return 1;
 	} else {
 
-		std::cout << "vr: " << programOptions.vr << std::endl;
-		std::cout << "sr: " << programOptions.sr << std::endl;
-		std::cout << "colorWeight: " << programOptions.colorWeight << std::endl;
-		std::cout << "spatialWeight: " << programOptions.spatialWeight << std::endl;
-		std::cout << "normalWeight: " << programOptions.normalWeight << std::endl;
+		if (programOptions.debug) {
+			std::cout << "vr: " << programOptions.vr << std::endl;
+			std::cout << "sr: " << programOptions.sr << std::endl;
+			std::cout << "colorWeight: " << programOptions.colorWeight << std::endl;
+			std::cout << "spatialWeight: " << programOptions.spatialWeight << std::endl;
+			std::cout << "normalWeight: " << programOptions.normalWeight << std::endl;
+		}
 
 		return 0;
 	}
@@ -77,31 +86,26 @@ main (int argc, char *argv[]) {
 	if (initOptions(argc, argv))
 		return 1;
 
-	if (argc < 3) {
+	if (argc < 2) {
 		std::cerr << "One or more scan files/transform missing" << std::endl;
 		return 1;
 	}
 
 	int s1, s2;
-	std::string transformFile;
 
 	s1 = atoi(argv[1]);
 	s2 = atoi(argv[2]);
 
-	if (argc > 3)
-		transformFile = argv[3];
-
-	const std::string dataDir = "../data/";
+	std::string transformFile = programOptions.transformFile;
+	const std::string dataDir = programOptions.dataDir;//"../data/";
 
 	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr scanA = boost::shared_ptr <pcl::PointCloud<pcl::PointXYZRGBA> > (new pcl::PointCloud<pcl::PointXYZRGBA> ());
 	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr scanB = boost::shared_ptr <pcl::PointCloud<pcl::PointXYZRGBA> > (new pcl::PointCloud<pcl::PointXYZRGBA> ());
 	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr temp = boost::shared_ptr <pcl::PointCloud<pcl::PointXYZRGBA> > (new pcl::PointCloud<pcl::PointXYZRGBA> ());
 
-	std::cout << "Loading PointClouds..." << std::endl;
-
 	std::stringstream ss;
 
-	ss << dataDir << boost::format("scan_%04d.pcd")%s1;
+	ss << dataDir << boost::format("scans_pcd/scan_%04d.pcd")%s1;
 
 	if (pcl::io::loadPCDFile<pcl::PointXYZRGBA> (ss.str(), *scanA)) {
 		std::cout << "Error loading cloud file: " << ss.str() << std::endl;
@@ -110,7 +114,7 @@ main (int argc, char *argv[]) {
 
 	// clear string
 	ss.str(std::string());
-	ss << dataDir << boost::format("scan_%04d.pcd")%s2;
+	ss << dataDir << boost::format("scans_pcd/scan_%04d.pcd")%s2;
 
 	if (pcl::io::loadPCDFile<pcl::PointXYZRGBA> (ss.str(), *temp)) {
 		std::cout << "Error loading cloud file: " << ss.str() << std::endl;
@@ -152,7 +156,7 @@ main (int argc, char *argv[]) {
 	temp->clear();
 
 	svr::SupervoxelRegistration supervoxelRegistration (programOptions.vr, programOptions.sr);
-	supervoxelRegistration.setDebug(true);
+	supervoxelRegistration.setDebug(programOptions.debug);
 	supervoxelRegistration.setApproximate(programOptions.approx);
 	supervoxelRegistration.setScans(scanA, scanB);
 
@@ -169,7 +173,6 @@ main (int argc, char *argv[]) {
 
 	} else {
 
-		std::cout << "Alignment Scan" << std::endl;
 		clock_t start = svr_util::getClock();
 
 		// begin registration
@@ -177,17 +180,29 @@ main (int argc, char *argv[]) {
 
 		// clear string
 		ss.str(std::string());
-		if (programOptions.approx)
-			ss << dataDir << "trans_result_approx_" << s1 << "_" << s2;
+
+		if (!programOptions.approx)
+			ss << dataDir << "/trans_absolute";
 		else
-			ss << dataDir << "trans_result_" << s1 << "_" << s2;
+			ss << dataDir << "/trans_approx";
+
+		if(!(boost::filesystem::exists(ss.str()))){
+			std::cout<<"Directory doesn't Exist"<<std::endl;
+
+			if (boost::filesystem::create_directory(ss.str()))
+				std::cout << "....Successfully Created !" << std::endl;
+		}
+
+		ss << "/trans_result_" << s1 << "_" << s2;
 		std::string transResultFile = ss.str();
 		std::ofstream fout(transResultFile.c_str());
 		fout << result;
 		fout.close();
 
 		clock_t end = svr_util::getClock();
-		std::cout << "Total time: " << svr_util::getClockTime(start, end) << std::endl;
+
+		if (programOptions.debug)
+			std::cout << "Total time: " << svr_util::getClockTime(start, end) << std::endl;
 
 	}
 
