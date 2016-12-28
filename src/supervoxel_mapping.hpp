@@ -97,6 +97,8 @@ public:
 	typedef boost::shared_ptr<SData> Ptr;
 	typedef std::vector<VData::Ptr> VoxelVector;
 	typedef boost::shared_ptr<VoxelVector> VoxelVectorPtr;
+	typedef std::vector<int> ScanIndexVector;
+	typedef boost::shared_ptr<ScanIndexVector> ScanIndexVectorPtr;
 
 	SData();
 	~SData();
@@ -116,9 +118,9 @@ public:
 		return voxelsA;
 	}
 
-	VoxelVectorPtr
-	getVoxelBVector() {
-		return voxelsB;
+	ScanIndexVectorPtr
+	getScanBIndexVector() {
+		return indicesB;
 	}
 
 	Eigen::Vector3f&
@@ -173,7 +175,7 @@ public:
     
 	void
 	clearScanBMapping() {
-		voxelsB->clear();
+		indicesB->clear();
 		pointBCount = 0;
 	}
 
@@ -237,8 +239,8 @@ private:
 	double epsilon2;
 	double d1, d2, d3;
 
+	ScanIndexVectorPtr indicesB;
 	VoxelVectorPtr voxelsA;
-	VoxelVectorPtr voxelsB;
 	int pointACount;
 	int pointBCount;
 

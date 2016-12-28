@@ -39,7 +39,7 @@ int initOptions(int argc, char* argv[]) {
 	programOptions.approx = false;
 	programOptions.dataDir = "../data/";
 	programOptions.transformFile = "trans_base";
-	programOptions.debug = false;
+	programOptions.debug = true;
 
 	po::options_description desc ("Allowed Options");
 
@@ -54,8 +54,7 @@ int initOptions(int argc, char* argv[]) {
 					("show_scan,y", po::value<bool>(&programOptions.showScans), "Show scans")
 					("data_dir", po::value<std::string>(&programOptions.dataDir), "Data Directory for the transformation")
 					("transform_file,f", po::value<std::string>(&programOptions.transformFile), "Transform file name")
-					("approximate,p", po::value<bool>(&programOptions.approx), "Approximate angles")
-					("debug,d", po::value<bool>(&programOptions.debug), "Debug");
+					("approximate,p", po::value<bool>(&programOptions.approx), "Approximate angles");
 
 	po::variables_map vm;
 
@@ -152,16 +151,19 @@ main (int argc, char *argv[]) {
 	}
 
 	// transform
-	pcl::transformPointCloud (*temp, *scanB, transform.inverse());
-	temp->clear();
+//	pcl::transformPointCloud (*temp, *scanB, transform.inverse());
+//	temp->clear();
 
 	svr::SupervoxelRegistration supervoxelRegistration (programOptions.vr, programOptions.sr);
 	supervoxelRegistration.setDebug(programOptions.debug);
+	supervoxelRegistration.setDebugScanString((boost::format("%d_%d")%s1%s2).str());
 	supervoxelRegistration.setApproximate(programOptions.approx);
-	supervoxelRegistration.setScans(scanA, scanB);
 
 	if (programOptions.test != 0 || programOptions.showScans) {
 
+		pcl::transformPointCloud (*temp, *scanB, transform.inverse());
+		temp->clear();
+		supervoxelRegistration.setScans(scanA, scanB);
 		std::cout << "Testing..." << std::endl;
 
 		if (programOptions.showScans && programOptions.test == 0) {
@@ -173,10 +175,27 @@ main (int argc, char *argv[]) {
 
 	} else {
 
+		scanB = temp;
+		supervoxelRegistration.setScans(scanA, scanB);
+
 		clock_t start = svr_util::getClock();
 
 		// begin registration
-		Eigen::Matrix4d result = supervoxelRegistration.alignScans();
+		Eigen::Affine3d r;
+		Eigen::Affine3d result;
+		Eigen::Affine3d initialT = transform.inverse();
+
+		supervoxelRegistration.alignScans(r, initialT);
+
+		// Save transformation in a file
+
+//		result = transform.matrix() * result.inverse();
+
+		result = r.inverse();
+//		Eigen::Matrix4d result = trans_new.inverse().matrix();
+		std::cout << "Resultant Transformation: " << std::endl << result.matrix();
+		std::cout << std::endl;
+
 
 		// clear string
 		ss.str(std::string());
@@ -196,7 +215,7 @@ main (int argc, char *argv[]) {
 		ss << "/trans_result_" << s1 << "_" << s2;
 		std::string transResultFile = ss.str();
 		std::ofstream fout(transResultFile.c_str());
-		fout << result;
+		fout << result.matrix();
 		fout.close();
 
 		clock_t end = svr_util::getClock();

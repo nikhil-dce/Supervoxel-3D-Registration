@@ -56,22 +56,13 @@ double computeSupervoxelFCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan)
 	double d2 = supervoxel->getD2();
 	Eigen::Matrix3f supervoxelCovarianceInverse = supervoxel->getCovarianceInverse();
 
-	SData::VoxelVectorPtr voxels = supervoxel->getVoxelBVector();
-	SData::VoxelVector::iterator vxlItr;
+	SData::ScanIndexVectorPtr indices = supervoxel->getScanBIndexVector();
+	SData::ScanIndexVector::iterator itr;
 
-	for (vxlItr = voxels->begin(); vxlItr != voxels->end(); ++vxlItr) {
-
-		VData::Ptr voxel = *vxlItr;
-
-		VData::ScanIndexVectorPtr indices = voxel->getIndexVector();
-		VData::ScanIndexVector::iterator itr;
-
-		for (itr = indices->begin(); itr != indices->end(); ++itr) {
-			int index = *itr;
-			svr::PointT p = scan->at(index);
-			cost += computePointFCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2);
-		}
-
+	for (itr = indices->begin(); itr != indices->end(); ++itr) {
+		int index = *itr;
+		svr::PointT p = scan->at(index);
+		cost += computePointFCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2);
 	}
 
 //	if (cost < 0 || epsilon1 <= 0 || epsilon2 <= 0) {
@@ -86,8 +77,8 @@ double computeSupervoxelFCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan)
 
 double f (const gsl_vector *pose, void* params) {
 
-	if (svr::_SVR_DEBUG_)
-		cout << "Calculating f" << endl;
+//	if (svr::_SVR_DEBUG_)
+//		cout << "Calculating f" << endl;
 
 	clock_t start = svr_util::getClock();
 
@@ -123,9 +114,9 @@ double f (const gsl_vector *pose, void* params) {
 		cost += computeSupervoxelFCost(supervoxel, transformedScan2);
 	}
 
-	clock_t end = svr_util::getClock();
-	if (svr::_SVR_DEBUG_)
-		std::cout << "f: " << svr_util::getClockTime(start, end) << std::endl;
+//	clock_t end = svr_util::getClock();
+//	if (svr::_SVR_DEBUG_)
+//		std::cout << "f: " << svr_util::getClockTime(start, end) << std::endl;
 
 	return cost;
 }
@@ -210,22 +201,13 @@ void computeSupervoxelDfCost(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, 
 	double d1 = supervoxel->getD1();
 	Eigen::Matrix3f supervoxelCovarianceInverse = supervoxel->getCovarianceInverse();
 
-	SData::VoxelVectorPtr voxels = supervoxel->getVoxelBVector();
-	SData::VoxelVector::iterator vxlItr;
+	SData::ScanIndexVectorPtr indices = supervoxel->getScanBIndexVector();
+	SData::ScanIndexVector::iterator itr;
 
-	for (vxlItr = voxels->begin(); vxlItr != voxels->end(); ++vxlItr) {
-
-		VData::Ptr voxel = *vxlItr;
-
-		VData::ScanIndexVectorPtr indices = voxel->getIndexVector();
-		VData::ScanIndexVector::iterator itr;
-
-		for (itr = indices->begin(); itr != indices->end(); ++itr) {
-			int index = *itr;
-			svr::PointT p = scan->at(index);
-			computePointDfCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2, pose, df, appx);
-		}
-
+	for (itr = indices->begin(); itr != indices->end(); ++itr) {
+		int index = *itr;
+		svr::PointT p = scan->at(index);
+		computePointDfCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2, pose, df, appx);
 	}
 }
 
@@ -234,8 +216,8 @@ void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 
 	gsl_vector_set_zero(df);
 
-	if (svr::_SVR_DEBUG_)
-		cout << "Calculating df" << endl;
+//	if (svr::_SVR_DEBUG_)
+//		cout << "Calculating df" << endl;
 
 	clock_t start = svr_util::getClock();
 
@@ -273,8 +255,8 @@ void df (const gsl_vector *pose, void *params, gsl_vector *df) {
 
 	clock_t end = svr_util::getClock();
 
-	if (svr::_SVR_DEBUG_)
-		std::cout << "df: " << svr_util::getClockTime(start, end) << std::endl;
+//	if (svr::_SVR_DEBUG_)
+//		std::cout << "df: " << svr_util::getClockTime(start, end) << std::endl;
 
 }
 
@@ -287,23 +269,14 @@ void computeSupervoxelFdf(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, con
 	double d2 = supervoxel->getD2();
 	Eigen::Matrix3f supervoxelCovarianceInverse = supervoxel->getCovarianceInverse();
 
-	SData::VoxelVectorPtr voxels = supervoxel->getVoxelBVector();
-	SData::VoxelVector::iterator vxlItr;
+	SData::ScanIndexVectorPtr indices = supervoxel->getScanBIndexVector();
+	SData::ScanIndexVector::iterator itr;
 
-	for (vxlItr = voxels->begin(); vxlItr != voxels->end(); ++vxlItr) {
-
-		VData::Ptr voxel = *vxlItr;
-
-		VData::ScanIndexVectorPtr indices = voxel->getIndexVector();
-		VData::ScanIndexVector::iterator itr;
-
-		for (itr = indices->begin(); itr != indices->end(); ++itr) {
-			int index = *itr;
-			svr::PointT p = scan->at(index);
-			computePointDfCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2, pose, df, appx);
-			*fCost += computePointFCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2);
-		}
-
+	for (itr = indices->begin(); itr != indices->end(); ++itr) {
+		int index = *itr;
+		svr::PointT p = scan->at(index);
+		computePointDfCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2, pose, df, appx);
+		*fCost += computePointFCost(p, supervoxelMean, supervoxelCovarianceInverse, d1, d2);
 	}
 
 }
@@ -312,8 +285,8 @@ void fdf (const gsl_vector *pose, void *params, double *fCost, gsl_vector *df) {
 
 	gsl_vector_set_zero(df);
 
-	if (svr::_SVR_DEBUG_)
-		cout << "Calculating fdf" << endl;
+//	if (svr::_SVR_DEBUG_)
+//		cout << "Calculating fdf" << endl;
 
 	clock_t start = svr_util::getClock();
 
@@ -351,27 +324,27 @@ void fdf (const gsl_vector *pose, void *params, double *fCost, gsl_vector *df) {
 
 	clock_t end = svr_util::getClock();
 
-	if (svr::_SVR_DEBUG_) {
-		cout << "fdf " << svr_util::getClockTime(start, end) << std::endl;
-		cout << "F: " << *fCost << std::endl;
-		std::cout << "df: " << std::endl;
-		std::cout << gsl_vector_get(df, 0) << std::endl;
-		std::cout << gsl_vector_get(df, 1) << std::endl;
-		std::cout << gsl_vector_get(df, 2) << std::endl;
-		std::cout << gsl_vector_get(df, 3) << std::endl;
-		std::cout << gsl_vector_get(df, 4) << std::endl;
-		std::cout << gsl_vector_get(df, 5) << std::endl;
-	}
+//	if (svr::_SVR_DEBUG_) {
+//		cout << "fdf " << svr_util::getClockTime(start, end) << std::endl;
+//		cout << "F: " << *fCost << std::endl;
+//		std::cout << "df: " << std::endl;
+//		std::cout << gsl_vector_get(df, 0) << std::endl;
+//		std::cout << gsl_vector_get(df, 1) << std::endl;
+//		std::cout << gsl_vector_get(df, 2) << std::endl;
+//		std::cout << gsl_vector_get(df, 3) << std::endl;
+//		std::cout << gsl_vector_get(df, 4) << std::endl;
+//		std::cout << gsl_vector_get(df, 5) << std::endl;
+//	}
 
 }
 
 const char* Status(int status) { return gsl_strerror(status); }
 
-Eigen::Affine3d
-optimize(svr_opti_data opt_data) {
+void
+optimize(svr_opti_data opt_data, Eigen::Affine3d& resultantTransform, float& cost) {
 
-//	const gsl_multimin_fdfminimizer_type *T = gsl_multimin_fdfminimizer_vector_bfgs2;
-	const gsl_multimin_fdfminimizer_type *T = gsl_multimin_fdfminimizer_conjugate_fr;
+	const gsl_multimin_fdfminimizer_type *T = gsl_multimin_fdfminimizer_vector_bfgs2;
+//	const gsl_multimin_fdfminimizer_type *T = gsl_multimin_fdfminimizer_conjugate_fr;
 	gsl_multimin_fdfminimizer *gsl_minimizer = NULL;
 	Eigen::Affine3d last_transform = opt_data.t;
 
@@ -384,8 +357,8 @@ optimize(svr_opti_data opt_data) {
 
 	bool debug = true;
 	int max_iter = 20;
-	double line_search_tol = .02;
-	double gradient_tol = 1e-1;
+	double line_search_tol = .01;
+	double gradient_tol = 1e-2;
 	double step_size = 1.;
 
 	// set up the gsl function_fdf struct
@@ -449,16 +422,18 @@ optimize(svr_opti_data opt_data) {
 			cout << "Yaw: " << yaw << endl;
 		}
 
-		Eigen::Affine3d resultantTransform = Eigen::Affine3d::Identity();
+		//Eigen::Affine3d resultantTransform = Eigen::Affine3d::Identity();
+		resultantTransform = Eigen::Affine3d::Identity();
 		resultantTransform.translation() << tx, ty, tz;
 		resultantTransform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
 		resultantTransform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 		resultantTransform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+		cost = gsl_minimizer->f;
 
 		gsl_vector_free(baseX);
 		gsl_multimin_fdfminimizer_free(gsl_minimizer);
 
-		return resultantTransform;
+		return;
 
 	} else if (status == GSL_ENOPROG) {
 
@@ -483,16 +458,17 @@ optimize(svr_opti_data opt_data) {
 			cout << "Yaw: " << yaw << endl;
 		}
 
-		Eigen::Affine3d resultantTransform = Eigen::Affine3d::Identity();
+		resultantTransform = Eigen::Affine3d::Identity();
 		resultantTransform.translation() << tx, ty, tz;
 		resultantTransform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
 		resultantTransform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 		resultantTransform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+		cost = gsl_minimizer->f;
 
 		gsl_vector_free(baseX);
 		gsl_multimin_fdfminimizer_free(gsl_minimizer);
 
-		return resultantTransform;
+		return;
 	}
 
 	if (svr::_SVR_DEBUG_)
@@ -501,7 +477,8 @@ optimize(svr_opti_data opt_data) {
 	gsl_vector_free(baseX);
 	gsl_multimin_fdfminimizer_free(gsl_minimizer);
 
-	return Eigen::Affine3d::Identity();
+	resultantTransform = Eigen::Affine3d::Identity();
+	cost = 0;
 }
 
 }

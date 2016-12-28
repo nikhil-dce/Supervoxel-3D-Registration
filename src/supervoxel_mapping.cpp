@@ -14,7 +14,12 @@ SData::SData() {
 	pointACount = 0;
 	pointBCount = 0;
 	voxelsA.reset(new VoxelVector());
-	voxelsB.reset(new VoxelVector());
+	indicesB.reset(new ScanIndexVector());
+	d1 = 0;
+	d2 = 0;
+	d3 = 0;
+	epsilon1 = 0;
+	epsilon2 = 0;
 }
 
 SData::~SData() {
