@@ -30,11 +30,12 @@ int initOptions(int argc, char* argv[]) {
 	namespace po = boost::program_options;
 
 	programOptions.colorWeight = 0.0f;
-	programOptions.spatialWeight = 0.4f;
+	//programOptions.spatialWeight = 0.4f;
+	programOptions.spatialWeight = 1.0f;
 	programOptions.normalWeight = 1.0f;
 	programOptions.vr = 1.0f;
-	programOptions.sr = 5.0f;
-	programOptions.test = 0; // 324 // 607
+	programOptions.sr = 10.0f;
+	programOptions.test = 0; //v-5: 324,180_185: 607
 	programOptions.showScans = false;
 	programOptions.approx = false;
 	programOptions.dataDir = "../data/";
