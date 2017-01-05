@@ -27,6 +27,37 @@ struct svr_opti_data {
 	bool approx;
 };
 
+class svrOptimize {
+
+public:
+
+	svrOptimize();
+
+	~svrOptimize();
+
+	void setOptimizeData(svr_opti_data data) {
+		opt_data = data;
+	}
+
+	void optimizeUsingGaussNewton(Eigen::Affine3d& resultantTransform, float& cost);
+
+private:
+
+//	double inline computePointFCost (svr::PointT p, Eigen::Vector4f& mean, Eigen::Matrix3f& covarianceInverse, double d1, double d2);
+//	double computeSupervoxelFCost (SData::Ptr supervoxel, svr::PointCloudT::Ptr scan);
+//	double f(Eigen::VectorXf& pose);
+//
+//	void inline computePointDfCost (svr::PointT p, Eigen::Vector4f& mean, Eigen::Matrix3f& covarianceInv, double d1, double d2, Eigen::VectorXf& df, bool appx);
+//	void computeSupervoxelDfCost (SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, const Eigen::VectorXf& pose, Eigen::VectorXf& df, bool appx);
+//	void df (const Eigen::VectorXf& pose);
+//
+//	void computeSupervoxelFdf(SData::Ptr supervoxel, svr::PointCloudT::Ptr scan, const Eigen::VectorXf& pose, Eigen::VectorXf& df, double* fCost, bool appx);
+//	void fdf (const Eigen::VectorXf& pose, double* fcost, Eigen::VectorXf& df);
+
+	svr_opti_data opt_data;
+
+};
+
 // Magnusson
 double inline computePointFCost (svr::PointT p, Eigen::Vector4f& mean, Eigen::Matrix3f& covarianceInverse, double d1, double d2) {
 
@@ -402,8 +433,8 @@ optimize(svr_opti_data opt_data, Eigen::Affine3d& resultantTransform, float& cos
 	if (status == GSL_SUCCESS || iter == max_iter) {
 
 		if (svr::_SVR_DEBUG_) {
-			cout << "Cost: " << gsl_minimizer->f << " Iteration: " << iter << endl;
-			cout << "Converged to minimum at " << endl;
+			std::cout << "Cost: " << gsl_minimizer->f << " Iteration: " << iter << std::endl;
+			std::cout << "Converged to minimum at " << std::endl;
 		}
 
 		double tx = gsl_vector_get (gsl_minimizer->x, 0);
@@ -414,12 +445,12 @@ optimize(svr_opti_data opt_data, Eigen::Affine3d& resultantTransform, float& cos
 		double yaw = gsl_vector_get (gsl_minimizer->x, 5);
 
 		if (svr::_SVR_DEBUG_) {
-			cout << "Tx: " << tx << endl;
-			cout << "Ty: " << ty << endl;
-			cout << "Tz: " << tz << endl;
-			cout << "Roll: " << roll << endl;
-			cout << "Pitch: " << pitch << endl;
-			cout << "Yaw: " << yaw << endl;
+			std::cout << "Tx: " << tx << std::endl;
+			std::cout << "Ty: " << ty << std::endl;
+			std::cout << "Tz: " << tz << std::endl;
+			std::cout << "Roll: " << roll << std::endl;
+			std::cout << "Pitch: " << pitch << std::endl;
+			std::cout << "Yaw: " << yaw << std::endl;
 		}
 
 		//Eigen::Affine3d resultantTransform = Eigen::Affine3d::Identity();
@@ -438,8 +469,8 @@ optimize(svr_opti_data opt_data, Eigen::Affine3d& resultantTransform, float& cos
 	} else if (status == GSL_ENOPROG) {
 
 		if (svr::_SVR_DEBUG_) {
-			cout << "Cost: " << gsl_minimizer->f << " Iteration: " << iter << endl;
-			cout << "Not making any progress " << endl;
+			std::cout << "Cost: " << gsl_minimizer->f << " Iteration: " << iter << std::endl;
+			std::cout << "Not making any progress " << std::endl;
 		}
 
 		double tx = gsl_vector_get (gsl_minimizer->x, 0);
@@ -450,12 +481,12 @@ optimize(svr_opti_data opt_data, Eigen::Affine3d& resultantTransform, float& cos
 		double yaw = gsl_vector_get (gsl_minimizer->x, 5);
 
 		if (svr::_SVR_DEBUG_) {
-			cout << "Tx: " << tx << endl;
-			cout << "Ty: " << ty << endl;
-			cout << "Tz: " << tz << endl;
-			cout << "Roll: " << roll << endl;
-			cout << "Pitch: " << pitch << endl;
-			cout << "Yaw: " << yaw << endl;
+			std::cout << "Tx: " << tx << std::endl;
+			std::cout << "Ty: " << ty << std::endl;
+			std::cout << "Tz: " << tz << std::endl;
+			std::cout << "Roll: " << roll << std::endl;
+			std::cout << "Pitch: " << pitch << std::endl;
+			std::cout << "Yaw: " << yaw << std::endl;
 		}
 
 		resultantTransform = Eigen::Affine3d::Identity();

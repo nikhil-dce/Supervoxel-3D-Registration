@@ -85,7 +85,7 @@ SupervoxelRegistration::calculateScan2Normals() {
 
 	PointCloudNormal::Ptr tempNormals (new PointCloudNormal());
 	normalsB.reset(new PointCloudXYZ ());
-	ne.setRadiusSearch(1); // meters
+	ne.setRadiusSearch(3); // meters
 
 	ne.compute(*tempNormals);
 
@@ -107,12 +107,6 @@ SupervoxelRegistration::calculateScan2Normals() {
 void
 SupervoxelRegistration::alignScans(Eigen::Affine3d& final_transform, Eigen::Affine3d& initial_transform) {
 
-	// TODO Remove
-	PointCloudT::Ptr temp = boost::shared_ptr <PointCloudT> (new PointCloudT ());
-	transformPointCloud (*B, *temp, initial_transform);
-	B = temp;
-	//
-
 	prepareForRegistration();
 
 	if (svr::_SVR_DEBUG_) {
@@ -124,8 +118,7 @@ SupervoxelRegistration::alignScans(Eigen::Affine3d& final_transform, Eigen::Affi
 	}
 
 	float lastItrCost = 0;
-//	Eigen::Affine3d trans_last = initial_transform;
-	Eigen::Affine3d trans_last = Eigen::Affine3d::Identity();
+	Eigen::Affine3d trans_last = initial_transform;
 	Eigen::Affine3d trans_new;
 	PointCloudT::Ptr transformedScan2 = boost::shared_ptr <PointCloudT> (new PointCloudT ());
 	PointCloudXYZ::Ptr transformedNormalsB = boost::shared_ptr <PointCloudXYZ> (new PointCloudXYZ ());
@@ -161,7 +154,8 @@ SupervoxelRegistration::alignScans(Eigen::Affine3d& final_transform, Eigen::Affi
 
 		if (svr::_SVR_DEBUG_) {
 			cout << "Debug Mode: Printing supervoxel Map..." << endl;
-			printSupervoxelMap(iteration+1, debugScanString);
+			cout << "Transformation: " << std::endl << trans_last.matrix(); cout << std::endl;
+			printSupervoxelMap(iteration+1, debugScanString, trans_last, lastItrCost);
 			cout << "Iteration " << iteration+1 << " ..." << endl;
 		}
 
@@ -171,6 +165,10 @@ SupervoxelRegistration::alignScans(Eigen::Affine3d& final_transform, Eigen::Affi
 		opti_data.t = trans_last;
 		opti_data.approx = appx;
 		float cost;
+
+//		svr_optimize::svrOptimize optimizer;
+//		optimizer.setOptimizeData(opti_data);
+//		optimizer.optimizeUsingGaussNewton(trans_new, cost);
 		optimize(opti_data, trans_new, cost);
 
 		/* compute the delta from this iteration */
@@ -369,17 +367,17 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 					indicesToConsider.push_back(neighborVoxel->getCentroidCloudIndex());
 				}
 
-//				// second neighbours
-//				typename SupervoxelClusteringT::LeafContainerT::const_iterator neighbouLeafItr;
-//				for (neighbouLeafItr = neighborLeaf->cbegin(); neighbouLeafItr != neighborLeaf->cend(); ++neighbouLeafItr) {
-//					typename SupervoxelClusteringT::LeafContainerT* secondNeighborLeaf = *neighbouLeafItr;
-//
-//					if (leafVoxelMap.find(secondNeighborLeaf) != leafVoxelMap.end() &&
-//							leafMapping.find(secondNeighborLeaf) != leafMapping.end() && leafMapping[secondNeighborLeaf] == label) {	// same supervoxel
-//						VData::Ptr secondNeighborVoxel = leafVoxelMap[secondNeighborLeaf];
-//						indicesToConsider.push_back(secondNeighborVoxel->getCentroidCloudIndex());
-//					}
-//				}
+				// second neighbours
+				typename SupervoxelClusteringT::LeafContainerT::const_iterator neighbouLeafItr;
+				for (neighbouLeafItr = neighborLeaf->cbegin(); neighbouLeafItr != neighborLeaf->cend(); ++neighbouLeafItr) {
+					typename SupervoxelClusteringT::LeafContainerT* secondNeighborLeaf = *neighbouLeafItr;
+
+					if (leafVoxelMap.find(secondNeighborLeaf) != leafVoxelMap.end() &&
+							leafMapping.find(secondNeighborLeaf) != leafMapping.end() && leafMapping[secondNeighborLeaf] == label) {	// same supervoxel
+						VData::Ptr secondNeighborVoxel = leafVoxelMap[secondNeighborLeaf];
+						indicesToConsider.push_back(secondNeighborVoxel->getCentroidCloudIndex());
+					}
+				}
 
 			}
 
@@ -471,12 +469,12 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 			Eigen::MatrixXf S = singularValues.asDiagonal();
 			supervoxelCovariance = U * singularValues.asDiagonal() * V.transpose();
 
-			supervoxelNormal = U.col(2);
+//			supervoxelNormal = U.col(2);
 			pcl::PointXYZ c;
 			c.x = supervoxelCentroid(0);
 			c.y = supervoxelCentroid(1);
 			c.z = supervoxelCentroid(2);
-			pcl::flipNormalTowardsViewpoint(c, 0, 0, 0, supervoxelNormal);
+//			pcl::flipNormalTowardsViewpoint(c, 0, 0, 0, supervoxelNormal);
 
 
 			supervoxel->setCovariance(supervoxelCovariance);
@@ -688,7 +686,7 @@ SupervoxelRegistration::createSuperVoxelMappingForScan2 (PointCloudT::Ptr transf
 
 				}
 
-				if (closestSupervoxelLabel > 0 && minDistance < 10)
+				if (closestSupervoxelLabel > 0)
 					supervoxelMap[closestSupervoxelLabel]->getScanBIndexVector()->push_back(i);
 
 			}
@@ -890,17 +888,25 @@ SupervoxelRegistration::showTestSuperVoxel(int supevoxelLabel) {
 //
 //					PointT p = A->at(*indexItr);
 //
-//					p.r = colorR;
-//					p.g = colorG;
+//					p.r = colorG;
+//					p.g = colorR;
 //					p.b = colorB;
 //
 //					newCloud->push_back(p);
 //				}
-//
-//
-//			}
 
 		}
+
+//		for (indexItr = supervoxel->getScanBIndexVector()->begin(); indexItr != supervoxel->getScanBIndexVector()->end(); ++indexItr) {
+//
+//			PointT p = B->at(*indexItr);
+//
+//			p.r = colorG;
+//			p.g = colorR;
+//			p.b = colorB;
+//
+//			newCloud->push_back(p);
+//		}
 
 		if (showSupervoxel) {
 

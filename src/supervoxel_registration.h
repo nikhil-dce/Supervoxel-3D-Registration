@@ -5,12 +5,13 @@
 #include <pcl/point_types.h>
 #include <fstream>
 #include <boost/unordered_map.hpp>
+#include <boost/filesystem.hpp>
 
 #include "supervoxel_cluster_search.h"
 #include "supervoxel_mapping.hpp"
 #include "supervoxel_util.hpp"
 
-#define SEARCH_SUPERVOXEL_NN 20;
+#define SEARCH_SUPERVOXEL_NN 30;
 #define NORM_VR 0.1
 #define NORM_R 5 // 5 meters
 
@@ -127,12 +128,12 @@ protected:
 
 private:
 
-	void printSupervoxelMap(int iteration, std::string scan_string) {
+	void printSupervoxelMap(int iteration, std::string scan_string, Eigen::Affine3d& trans, float cost) {
 
 		std::stringstream ss;
 		// clear string
 		ss.str(std::string());
-		ss << "DEBUG_FILES/" << scan_string;
+		ss << "../data/DEBUG_FILES/" << scan_string;
 
 		std::string dir = ss.str();
 		if(!(boost::filesystem::exists(dir))){
@@ -180,6 +181,17 @@ private:
 		}
 
 		file.close();
+
+		ss.str(std::string());
+		ss << dir << "/trans_iteration_" << iteration;
+
+		filename = ss.str();
+		file.open(filename.c_str());
+
+		file << trans.matrix();
+		file << std::endl << cost;
+		file.close();
+
 	}
 
 	bool debug, appx;

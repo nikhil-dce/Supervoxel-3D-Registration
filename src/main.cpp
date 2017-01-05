@@ -34,7 +34,7 @@ int initOptions(int argc, char* argv[]) {
 	programOptions.spatialWeight = 1.0f;
 	programOptions.normalWeight = 1.0f;
 	programOptions.vr = 1.0f;
-	programOptions.sr = 10.0f;
+	programOptions.sr = 5.0f;
 	programOptions.test = 0; //v-5: 324,180_185: 607
 	programOptions.showScans = false;
 	programOptions.approx = false;
@@ -150,10 +150,6 @@ main (int argc, char *argv[]) {
 		}
 
 	}
-
-	// transform
-//	pcl::transformPointCloud (*temp, *scanB, transform.inverse());
-//	temp->clear();
 
 	svr::SupervoxelRegistration supervoxelRegistration (programOptions.vr, programOptions.sr);
 	supervoxelRegistration.setDebug(programOptions.debug);
