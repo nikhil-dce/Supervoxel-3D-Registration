@@ -85,7 +85,7 @@ SupervoxelRegistration::calculateScan2Normals() {
 
 	PointCloudNormal::Ptr tempNormals (new PointCloudNormal());
 	normalsB.reset(new PointCloudXYZ ());
-	ne.setRadiusSearch(3); // meters
+	ne.setRadiusSearch(0.5); // meters
 
 	ne.compute(*tempNormals);
 
@@ -166,10 +166,10 @@ SupervoxelRegistration::alignScans(Eigen::Affine3d& final_transform, Eigen::Affi
 		opti_data.approx = appx;
 		float cost;
 
-//		svr_optimize::svrOptimize optimizer;
-//		optimizer.setOptimizeData(opti_data);
-//		optimizer.optimizeUsingGaussNewton(trans_new, cost);
-		optimize(opti_data, trans_new, cost);
+		svr_optimize::svrOptimize optimizer;
+		optimizer.setOptimizeData(opti_data);
+		optimizer.optimizeUsingGaussNewton(trans_new, cost);
+//		optimize(opti_data, trans_new, cost);
 
 		/* compute the delta from this iteration */
 		delta = 0.;
@@ -198,9 +198,9 @@ SupervoxelRegistration::alignScans(Eigen::Affine3d& final_transform, Eigen::Affi
 		if (_SVR_DEBUG_)
 			cout << "Iteration: " << iteration << " delta = " << delta << endl;
 
-		float costDiff = fabs(cost - lastItrCost) / epsilon_cost ;
-		if (costDiff > delta)
-			delta = costDiff;
+//		float costDiff = fabs(cost - lastItrCost) / epsilon_cost ;
+//		if (costDiff > delta)
+//			delta = costDiff;
 		if(iteration >= maxIteration || delta < 1) {
 			converged = true;
 		}
@@ -542,7 +542,7 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
         supervoxel->setEpsilon1(epsilon1);
         supervoxel->setEpsilon2(epsilon2);
 
-        if (epsilon1 > 1 || epsilon2 > 1) {
+        if (epsilon1 >= 1 || epsilon2 >= 1) {
         	cout << "Supervoxel Label: " << svLabel << " Points: " << supervoxel->getPointACount() <<  " Voxels: " << voxels->size() << endl;
         	cout << "Epsilon 1: " << epsilon1 << endl;
         	cout << "Epsilon 2: " << epsilon2 << endl;
@@ -575,6 +575,11 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
     	double d2 = -2 * log( (-log(c1 * NSQRT_EXP + c2) - d3) / d1);
 
     	Eigen::Matrix3f supervoxelCovarianceInverse = supervoxelCovariance.inverse();
+
+//    	cout << "Label: " << svLabel << std::endl;
+//    	cout << "d1: " << d1 << std::endl;
+//    	cout << "d2: " << d2 << std::endl;
+//    	cout << "d3: " << d3 << std::endl;
 
     	supervoxel->setD1(d1);
     	supervoxel->setD2(d2);
@@ -845,6 +850,7 @@ SupervoxelRegistration::showTestSuperVoxel(int supevoxelLabel) {
 
 	int SV = supevoxelLabel;
 	typename PointCloudT::Ptr newCloud (new PointCloudT);
+	typename PointCloudT::Ptr meanCloud (new PointCloudT);
 
 	for (svItr = supervoxelMap.begin(); svItr != supervoxelMap.end(); ++svItr) {
 
@@ -863,64 +869,76 @@ SupervoxelRegistration::showTestSuperVoxel(int supevoxelLabel) {
 		int colorG = rand() / 255;
 		int colorB = rand() / 255;
 
+		Eigen::Vector4f meanVector = supervoxel->getCentroid();
+		PointT meanP;
+		meanP.x = meanVector(0);
+		meanP.y = meanVector(1);
+		meanP.z = meanVector(2);
+		meanP.r = colorG;
+		meanP.g = colorR;
+		meanP.b = colorB;
+
+		meanCloud->push_back(meanP);
+
+
 		for (voxelItr = voxelsA->begin(); voxelItr != voxelsA->end(); ++ voxelItr) {
 			VData::Ptr voxel = (*voxelItr);
 			counterA+= voxel->getIndexVector()->size();
 
-			if (showSupervoxel) {
-
-				for (indexItr = voxel->getIndexVector()->begin(); indexItr != voxel->getIndexVector()->end(); ++indexItr) {
-
-					PointT p = A->at(*indexItr);
-
-					p.r = 255;
-					p.g = 0;
-					p.b = 0;
-
-					newCloud->push_back(p);
-				}
-
-
-			}
-//			else {
+//			if (showSupervoxel) {
 //
 //				for (indexItr = voxel->getIndexVector()->begin(); indexItr != voxel->getIndexVector()->end(); ++indexItr) {
 //
 //					PointT p = A->at(*indexItr);
 //
-//					p.r = colorG;
-//					p.g = colorR;
-//					p.b = colorB;
+//					p.r = 255;
+//					p.g = 0;
+//					p.b = 0;
 //
 //					newCloud->push_back(p);
 //				}
-
-		}
-
-//		for (indexItr = supervoxel->getScanBIndexVector()->begin(); indexItr != supervoxel->getScanBIndexVector()->end(); ++indexItr) {
 //
-//			PointT p = B->at(*indexItr);
 //
-//			p.r = colorG;
-//			p.g = colorR;
-//			p.b = colorB;
+//			}
+//			else {
 //
-//			newCloud->push_back(p);
-//		}
+			for (indexItr = voxel->getIndexVector()->begin(); indexItr != voxel->getIndexVector()->end(); ++indexItr) {
 
-		if (showSupervoxel) {
+				PointT p = A->at(*indexItr);
 
-			for (indexItr = supervoxel->getScanBIndexVector()->begin(); indexItr != supervoxel->getScanBIndexVector()->end(); ++indexItr) {
-
-				PointT p = B->at(*indexItr);
-
-				p.r = 0;
-				p.g = 255;
-				p.b = 0;
+				p.r = colorG;
+				p.g = colorR;
+				p.b = colorB;
 
 				newCloud->push_back(p);
 			}
+
 		}
+
+		for (indexItr = supervoxel->getScanBIndexVector()->begin(); indexItr != supervoxel->getScanBIndexVector()->end(); ++indexItr) {
+
+			PointT p = B->at(*indexItr);
+
+			p.r = colorG;
+			p.g = colorR;
+			p.b = colorB;
+
+			newCloud->push_back(p);
+		}
+
+//		if (showSupervoxel) {
+//
+//			for (indexItr = supervoxel->getScanBIndexVector()->begin(); indexItr != supervoxel->getScanBIndexVector()->end(); ++indexItr) {
+//
+//				PointT p = B->at(*indexItr);
+//
+//				p.r = 0;
+//				p.g = 255;
+//				p.b = 0;
+//
+//				newCloud->push_back(p);
+//			}
+//		}
 
 		counterB += supervoxel->getScanBIndexVector()->size();
 		cout << svLabel << '\t' << "A: " << counterA << '\t' << "B: " << counterB << endl;

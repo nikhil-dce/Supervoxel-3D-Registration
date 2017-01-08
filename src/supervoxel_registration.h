@@ -188,7 +188,7 @@ private:
 		filename = ss.str();
 		file.open(filename.c_str());
 
-		file << trans.matrix();
+		file << trans.inverse().matrix();
 		file << std::endl << cost;
 		file.close();
 
