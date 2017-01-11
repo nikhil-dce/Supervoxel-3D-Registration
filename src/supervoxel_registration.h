@@ -3,6 +3,8 @@
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/visualization/point_picking_event.h>
+
 #include <fstream>
 #include <boost/unordered_map.hpp>
 #include <boost/filesystem.hpp>
@@ -11,6 +13,7 @@
 #include "supervoxel_mapping.hpp"
 #include "supervoxel_util.hpp"
 
+#define NORMAL_RADIUS 0.5;
 #define SEARCH_SUPERVOXEL_NN 30;
 #define NORM_VR 0.1
 #define NORM_R 5 // 5 meters
@@ -21,7 +24,7 @@
 #define NORM_DZ 0.1
 
 // Min points to be present in supevoxel for MI consideration
-#define MIN_POINTS_IN_SUPERVOXEL 20
+#define MIN_POINTS_IN_SUPERVOXEL 30
 
 #define PROBABILITY_OUTLIERS_SUPERVOXEL 0.35
 
@@ -112,7 +115,7 @@ protected:
 	createSuperVoxelMappingForScan1 ();
 
 	void
-	createSuperVoxelMappingForScan2 (PointCloudT::Ptr transformedScanB, PointCloudXYZ::Ptr transformedNormalsB);
+	createSuperVoxelMappingForScan2 (PointCloudT::Ptr transformedScanB, PointCloudXYZ::Ptr transformedNormalsB, int iteration);
 
 	void
 	calculateSupervoxelScanBData();
@@ -127,6 +130,8 @@ protected:
 	calculateScan2Normals();
 
 private:
+
+//	void pp_callback(const pcl::visualization::PointPickingEvent& event, void* viewer);
 
 	void printSupervoxelMap(int iteration, std::string scan_string, Eigen::Affine3d& trans, float cost) {
 

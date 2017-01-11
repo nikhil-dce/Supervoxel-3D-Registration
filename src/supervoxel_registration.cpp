@@ -16,6 +16,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/common/transforms.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/visualization/point_picking_event.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/features/normal_3d_omp.h>
 
@@ -32,10 +33,10 @@
 using namespace svr;
 
 SupervoxelRegistration::SupervoxelRegistration(float voxelR, float seedR):
-	supervoxelClustering (voxelR, seedR),
-	vr (voxelR),
-	sr (seedR),
-	octree_bounds_()
+			supervoxelClustering (voxelR, seedR),
+			vr (voxelR),
+			sr (seedR),
+			octree_bounds_()
 {
 	appx = false;
 	debug = false;
@@ -60,12 +61,12 @@ SupervoxelRegistration::setScans(PointCloudT::Ptr scanA, PointCloudT::Ptr scanB)
 
 void
 SupervoxelRegistration::prepareForRegistration() {
-		std::map <uint32_t, pcl::Supervoxel<PointT>::Ptr> supervoxelClusters = initializeVoxels();
-		createSuperVoxelMappingForScan1();
-		createKDTreeForSupervoxels();
-		calculateScan2Normals();
-		if (_SVR_DEBUG_)
-			std::cout << "Number of supervoxels: " << supervoxelMap.size() << std::endl;
+	std::map <uint32_t, pcl::Supervoxel<PointT>::Ptr> supervoxelClusters = initializeVoxels();
+	createSuperVoxelMappingForScan1();
+	createKDTreeForSupervoxels();
+	calculateScan2Normals();
+	if (_SVR_DEBUG_)
+		std::cout << "Number of supervoxels: " << supervoxelMap.size() << std::endl;
 }
 
 void
@@ -85,7 +86,8 @@ SupervoxelRegistration::calculateScan2Normals() {
 
 	PointCloudNormal::Ptr tempNormals (new PointCloudNormal());
 	normalsB.reset(new PointCloudXYZ ());
-	ne.setRadiusSearch(0.5); // meters
+	double radius = NORMAL_RADIUS;
+	ne.setRadiusSearch(radius); // meters
 
 	ne.compute(*tempNormals);
 
@@ -148,7 +150,13 @@ SupervoxelRegistration::alignScans(Eigen::Affine3d& final_transform, Eigen::Affi
 		}
 
 		transformPointCloud (*normalsB, *transformedNormalsB, normalTransformation);
-		createSuperVoxelMappingForScan2(transformedScan2, transformedNormalsB);
+
+		for (int pi = 0; pi<transformedNormalsB->size(); ++pi) {
+			pcl::PointXYZ pN = transformedNormalsB->at(pi);
+			pcl::flipNormalTowardsViewpoint(transformedScan2->at(pi), 0, 0, 0, pN.x, pN.y, pN.z);
+		}
+
+		createSuperVoxelMappingForScan2(transformedScan2, transformedNormalsB, iteration+1);
 
 		// New mapping
 
@@ -169,7 +177,7 @@ SupervoxelRegistration::alignScans(Eigen::Affine3d& final_transform, Eigen::Affi
 		svr_optimize::svrOptimize optimizer;
 		optimizer.setOptimizeData(opti_data);
 		optimizer.optimizeUsingGaussNewton(trans_new, cost);
-//		optimize(opti_data, trans_new, cost);
+		//		optimize(opti_data, trans_new, cost);
 
 		/* compute the delta from this iteration */
 		delta = 0.;
@@ -198,9 +206,9 @@ SupervoxelRegistration::alignScans(Eigen::Affine3d& final_transform, Eigen::Affi
 		if (_SVR_DEBUG_)
 			cout << "Iteration: " << iteration << " delta = " << delta << endl;
 
-//		float costDiff = fabs(cost - lastItrCost) / epsilon_cost ;
-//		if (costDiff > delta)
-//			delta = costDiff;
+		//		float costDiff = fabs(cost - lastItrCost) / epsilon_cost ;
+		//		if (costDiff > delta)
+		//			delta = costDiff;
 		if(iteration >= maxIteration || delta < 1) {
 			converged = true;
 		}
@@ -433,16 +441,16 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 		SData::VoxelVectorPtr voxels = supervoxel->getVoxelAVector();
 
 		Eigen::Vector3f supervoxelNormal = Eigen::Vector3f::Zero();
-        Eigen::Vector4f supervoxelCentroid = Eigen::Vector4f::Identity();
-        Eigen::Matrix3f supervoxelCovariance = Eigen::Matrix3f::Zero();
-        
-        VData::ScanIndexVector supervoxelScanIndices; // needed for supervoxel centroid
+		Eigen::Vector4f supervoxelCentroid = Eigen::Vector4f::Identity();
+		Eigen::Matrix3f supervoxelCovariance = Eigen::Matrix3f::Zero();
+
+		VData::ScanIndexVector supervoxelScanIndices; // needed for supervoxel centroid
 
 		typename SData::VoxelVector::iterator voxelItr;
 		for (voxelItr = voxels->begin(); voxelItr != voxels->end(); ++voxelItr) {
-            VData::ScanIndexVectorPtr voxelIndices = (*voxelItr)->getIndexVector();
-            supervoxelScanIndices.insert(supervoxelScanIndices.begin(), voxelIndices->begin(), voxelIndices->end());
-            
+			VData::ScanIndexVectorPtr voxelIndices = (*voxelItr)->getIndexVector();
+			supervoxelScanIndices.insert(supervoxelScanIndices.begin(), voxelIndices->begin(), voxelIndices->end());
+
 			int voxelSize = (*voxelItr)->getIndexVector()->size();
 			supervoxelPointCount += voxelSize;
 			supervoxelNormal += (*voxelItr)->getNormal();
@@ -469,12 +477,12 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 			Eigen::MatrixXf S = singularValues.asDiagonal();
 			supervoxelCovariance = U * singularValues.asDiagonal() * V.transpose();
 
-//			supervoxelNormal = U.col(2);
+			//			supervoxelNormal = U.col(2);
 			pcl::PointXYZ c;
 			c.x = supervoxelCentroid(0);
 			c.y = supervoxelCentroid(1);
 			c.z = supervoxelCentroid(2);
-//			pcl::flipNormalTowardsViewpoint(c, 0, 0, 0, supervoxelNormal);
+			//			pcl::flipNormalTowardsViewpoint(c, 0, 0, 0, supervoxelNormal);
 
 
 			supervoxel->setCovariance(supervoxelCovariance);
@@ -491,7 +499,7 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 		}
 
 	}
-    
+
 	if (_SVR_DEBUG_)
 		cout << "Debug Mode: Removing supervoxels with points less than " << MIN_POINTS_IN_SUPERVOXEL << endl;
 
@@ -502,97 +510,97 @@ SupervoxelRegistration::createSuperVoxelMappingForScan1 () {
 	}
 
 
-    // Covariance and mean calculated
-    
+	// Covariance and mean calculated
+
 	if (_SVR_DEBUG_)
 		cout << "Calculating supervoxel data - covariance, mean, epsilon1 and epsilon2" << endl;
-    // Calculate Epsilon1 and Epsilon2 for each supervoxel where
-    // TotalSupervoxelProbability = Epsilon1 * ProbabilityFromNaturalDistribution + Epsilon2 * ProbabilityFromOutilers
-    // Epsilon1 + Epsilon2 = 1
-    // TotalSupervoxelProbability has mass 1
-    
-    for (svItr = supervoxelMap.begin(); svItr != supervoxelMap.end(); ++svItr) {
+	// Calculate Epsilon1 and Epsilon2 for each supervoxel where
+	// TotalSupervoxelProbability = Epsilon1 * ProbabilityFromNaturalDistribution + Epsilon2 * ProbabilityFromOutilers
+	// Epsilon1 + Epsilon2 = 1
+	// TotalSupervoxelProbability has mass 1
 
-    	int svLabel = svItr->first;
-        SData::Ptr supervoxel = svItr->second;
-        SData::VoxelVectorPtr voxels = supervoxel->getVoxelAVector();
+	for (svItr = supervoxelMap.begin(); svItr != supervoxelMap.end(); ++svItr) {
 
-        Eigen::Vector4f supervoxelCentroid = supervoxel->getCentroid();
-        Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
+		int svLabel = svItr->first;
+		SData::Ptr supervoxel = svItr->second;
+		SData::VoxelVectorPtr voxels = supervoxel->getVoxelAVector();
 
-        double outlierPro = PROBABILITY_OUTLIERS_SUPERVOXEL;
-        double probabilityOutliers =  voxels->size() * svr_util::cube<float>(vr) * outlierPro; // Epsilon2
-        double totalProbabilityFromND = 0.0f; // Epsilon1
-        double epsilon1(0), epsilon2(0);
+		Eigen::Vector4f supervoxelCentroid = supervoxel->getCentroid();
+		Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
 
-        typename SData::VoxelVector::iterator voxelItr;
-        for (voxelItr = voxels->begin(); voxelItr != voxels->end(); ++voxelItr) {
+		double outlierPro = PROBABILITY_OUTLIERS_SUPERVOXEL;
+		double probabilityOutliers =  voxels->size() * svr_util::cube<float>(vr) * outlierPro; // Epsilon2
+		double totalProbabilityFromND = 0.0f; // Epsilon1
+		double epsilon1(0), epsilon2(0);
 
-        	VData::Ptr voxel = (*voxelItr);
-            float ax, bx, ay, by, az, bz;
+		typename SData::VoxelVector::iterator voxelItr;
+		for (voxelItr = voxels->begin(); voxelItr != voxels->end(); ++voxelItr) {
 
-            adjTree->getLeafBounds(voxel->getCentroid(), ax, bx, ay, by, az, bz); // using centroid, any point should work
-            totalProbabilityFromND += svr_util::calculateApproximateIntegralForVoxel(ax, bx, ay, by, az, bz, supervoxelCovariance, supervoxelCentroid);
-        }
+			VData::Ptr voxel = (*voxelItr);
+			float ax, bx, ay, by, az, bz;
 
-        totalProbabilityFromND -= probabilityOutliers;
-        epsilon1 = (1-probabilityOutliers) / totalProbabilityFromND;
-        epsilon2 = 1-epsilon1;
+			adjTree->getLeafBounds(voxel->getCentroid(), ax, bx, ay, by, az, bz); // using centroid, any point should work
+			totalProbabilityFromND += svr_util::calculateApproximateIntegralForVoxel(ax, bx, ay, by, az, bz, supervoxelCovariance, supervoxelCentroid);
+		}
 
-        supervoxel->setEpsilon1(epsilon1);
-        supervoxel->setEpsilon2(epsilon2);
+		totalProbabilityFromND -= probabilityOutliers;
+		epsilon1 = (1-probabilityOutliers) / totalProbabilityFromND;
+		epsilon2 = 1-epsilon1;
 
-        if (epsilon1 >= 1 || epsilon2 >= 1) {
-        	cout << "Supervoxel Label: " << svLabel << " Points: " << supervoxel->getPointACount() <<  " Voxels: " << voxels->size() << endl;
-        	cout << "Epsilon 1: " << epsilon1 << endl;
-        	cout << "Epsilon 2: " << epsilon2 << endl;
-        }
+		supervoxel->setEpsilon1(epsilon1);
+		supervoxel->setEpsilon2(epsilon2);
 
-    }
+		if (epsilon1 >= 1 || epsilon2 >= 1) {
+			cout << "Supervoxel Label: " << svLabel << " Points: " << supervoxel->getPointACount() <<  " Voxels: " << voxels->size() << endl;
+			cout << "Epsilon 1: " << epsilon1 << endl;
+			cout << "Epsilon 2: " << epsilon2 << endl;
+		}
 
-    if (_SVR_DEBUG_)
-    	cout << "Precomputing supervoxel function constants d1, d2, d3 and convariance inverse " << endl;
-    // No need seperate loop for this
+	}
 
-    for (svItr = supervoxelMap.begin(); svItr != supervoxelMap.end(); ++svItr) {
+	if (_SVR_DEBUG_)
+		cout << "Precomputing supervoxel function constants d1, d2, d3 and convariance inverse " << endl;
+	// No need seperate loop for this
 
-    	int svLabel = svItr->first;
-    	SData::Ptr supervoxel = svItr->second;
+	for (svItr = supervoxelMap.begin(); svItr != supervoxelMap.end(); ++svItr) {
 
-    	Eigen::Vector4f supervoxelCentroid = supervoxel->getCentroid();
-    	Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
+		int svLabel = svItr->first;
+		SData::Ptr supervoxel = svItr->second;
 
-    	double normal3DConstant = NORMAL_3D_CONSTANT;
+		Eigen::Vector4f supervoxelCentroid = supervoxel->getCentroid();
+		Eigen::Matrix3f supervoxelCovariance = supervoxel->getCovariance();
 
-    	double epsilon1 = supervoxel->getEpsilon1();
-    	double epsilon2 = supervoxel->getEpsilon2();
+		double normal3DConstant = NORMAL_3D_CONSTANT;
 
-    	double c2 = epsilon2 * PROBABILITY_OUTLIERS_SUPERVOXEL;
-    	double c1 = epsilon1 * normal3DConstant / sqrt (supervoxelCovariance.determinant()) ;
+		double epsilon1 = supervoxel->getEpsilon1();
+		double epsilon2 = supervoxel->getEpsilon2();
 
-    	double d3 = -log(c2);
-    	double d1 = -log(c1 + c2) -d3;
-    	double d2 = -2 * log( (-log(c1 * NSQRT_EXP + c2) - d3) / d1);
+		double c2 = epsilon2 * PROBABILITY_OUTLIERS_SUPERVOXEL;
+		double c1 = epsilon1 * normal3DConstant / sqrt (supervoxelCovariance.determinant()) ;
 
-    	Eigen::Matrix3f supervoxelCovarianceInverse = supervoxelCovariance.inverse();
+		double d3 = -log(c2);
+		double d1 = -log(c1 + c2) -d3;
+		double d2 = -2 * log( (-log(c1 * NSQRT_EXP + c2) - d3) / d1);
 
-//    	cout << "Label: " << svLabel << std::endl;
-//    	cout << "d1: " << d1 << std::endl;
-//    	cout << "d2: " << d2 << std::endl;
-//    	cout << "d3: " << d3 << std::endl;
+		Eigen::Matrix3f supervoxelCovarianceInverse = supervoxelCovariance.inverse();
 
-    	supervoxel->setD1(d1);
-    	supervoxel->setD2(d2);
-    	supervoxel->setD3(d3);
-    	supervoxel->setCovarianceInverse(supervoxelCovarianceInverse);
+		//    	cout << "Label: " << svLabel << std::endl;
+		//    	cout << "d1: " << d1 << std::endl;
+		//    	cout << "d2: " << d2 << std::endl;
+		//    	cout << "d3: " << d3 << std::endl;
 
-    }
+		supervoxel->setD1(d1);
+		supervoxel->setD2(d2);
+		supervoxel->setD3(d3);
+		supervoxel->setCovarianceInverse(supervoxelCovarianceInverse);
+
+	}
 
 
 }
 
 void
-SupervoxelRegistration::createSuperVoxelMappingForScan2 (PointCloudT::Ptr transformedB, PointCloudXYZ::Ptr transformedNormalsB) {
+SupervoxelRegistration::createSuperVoxelMappingForScan2 (PointCloudT::Ptr transformedB, PointCloudXYZ::Ptr transformedNormalsB, int iteration) {
 
 	SVMap::iterator svItr;
 
@@ -633,6 +641,8 @@ SupervoxelRegistration::createSuperVoxelMappingForScan2 (PointCloudT::Ptr transf
 					SData::Ptr supervoxel = supervoxelMap[label];
 					supervoxel->getScanBIndexVector()->push_back(i);
 				}
+//				else
+//					searchForSupervoxel = true;
 
 			} else {
 				// leaf exists in scan 1 but doesn't have a supervoxel label
@@ -669,6 +679,7 @@ SupervoxelRegistration::createSuperVoxelMappingForScan2 (PointCloudT::Ptr transf
 
 				int closestSupervoxelLabel = -1;
 				double minDistance = INT_MAX;
+//				double minDistance = 50;
 				int counter = 0;
 				for (intItr = pointIdxNKNSearch.begin(); intItr != pointIdxNKNSearch.end(); ++intItr, ++counter) {
 
@@ -681,7 +692,6 @@ SupervoxelRegistration::createSuperVoxelMappingForScan2 (PointCloudT::Ptr transf
 
 					double d = acos(normal.dot(supervoxelNormal)) * 2 / M_PI;
 					d = 1 - log2(1.0 - d);
-
 					d *= euclideanD;
 
 					if (d < minDistance) {
@@ -737,7 +747,7 @@ SupervoxelRegistration::createKDTreeForSupervoxels() {
 	PointCloudXYZ::Ptr svLabelCloud = boost::shared_ptr<PointCloudXYZ>(new PointCloudXYZ());
 
 	SVMap::iterator svItr;
-	
+
 	pcl::PointXYZ treePoint;
 
 	for (svItr = supervoxelMap.begin(); svItr != supervoxelMap.end(); ++svItr) {
@@ -745,12 +755,12 @@ SupervoxelRegistration::createKDTreeForSupervoxels() {
 		SData::Ptr supervoxel = svItr->second;
 		int label = svItr->first;
 
-        Eigen::Vector4f centroid = supervoxel->getCentroid();
+		Eigen::Vector4f centroid = supervoxel->getCentroid();
 
-        PointT supervoxelCentroid;
-        supervoxelCentroid.x = centroid[0];
-        supervoxelCentroid.y = centroid[1];
-        supervoxelCentroid.z = centroid[2];
+		PointT supervoxelCentroid;
+		supervoxelCentroid.x = centroid[0];
+		supervoxelCentroid.y = centroid[1];
+		supervoxelCentroid.z = centroid[2];
 
 		treePoint.x = supervoxelCentroid.x;
 		treePoint.y = supervoxelCentroid.y;
@@ -789,12 +799,24 @@ SupervoxelRegistration::showPointClouds(std::string viewerTitle) {
 
 }
 
+void static
+pp_callback(const pcl::visualization::PointPickingEvent& event, void* viewer)
+{
+	std::cout << "Picking event active" << std::endl;
+	if(event.getPointIndex()!=-1)
+	{
+		float x,y,z;
+		event.getPoint(x,y,z);
+		std::cout << x<< ";" << y<<";" << z << std::endl;
+	}
+}
+
 void
 SupervoxelRegistration::showPointCloud(typename PointCloudT::Ptr scan) {
 
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("Supervoxel Based MI Viewer"));
 	viewer->setBackgroundColor (0,0,0);
-
+	viewer->registerPointPickingCallback(pp_callback, (void*) &*scan);
 	std::string id1("scan");
 
 	pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb1(scan);
@@ -840,7 +862,7 @@ SupervoxelRegistration::showTestSuperVoxel(int supevoxelLabel) {
 	createSuperVoxelMappingForScan1();
 	createKDTreeForSupervoxels();
 	calculateScan2Normals();
-	createSuperVoxelMappingForScan2(B, normalsB);
+	createSuperVoxelMappingForScan2(B, normalsB, 1);
 
 	// Display all supervoxels with count A and count B
 
@@ -885,23 +907,23 @@ SupervoxelRegistration::showTestSuperVoxel(int supevoxelLabel) {
 			VData::Ptr voxel = (*voxelItr);
 			counterA+= voxel->getIndexVector()->size();
 
-//			if (showSupervoxel) {
-//
-//				for (indexItr = voxel->getIndexVector()->begin(); indexItr != voxel->getIndexVector()->end(); ++indexItr) {
-//
-//					PointT p = A->at(*indexItr);
-//
-//					p.r = 255;
-//					p.g = 0;
-//					p.b = 0;
-//
-//					newCloud->push_back(p);
-//				}
-//
-//
-//			}
-//			else {
-//
+			//			if (showSupervoxel) {
+			//
+			//				for (indexItr = voxel->getIndexVector()->begin(); indexItr != voxel->getIndexVector()->end(); ++indexItr) {
+			//
+			//					PointT p = A->at(*indexItr);
+			//
+			//					p.r = 255;
+			//					p.g = 0;
+			//					p.b = 0;
+			//
+			//					newCloud->push_back(p);
+			//				}
+			//
+			//
+			//			}
+			//			else {
+			//
 			for (indexItr = voxel->getIndexVector()->begin(); indexItr != voxel->getIndexVector()->end(); ++indexItr) {
 
 				PointT p = A->at(*indexItr);
@@ -926,19 +948,19 @@ SupervoxelRegistration::showTestSuperVoxel(int supevoxelLabel) {
 			newCloud->push_back(p);
 		}
 
-//		if (showSupervoxel) {
-//
-//			for (indexItr = supervoxel->getScanBIndexVector()->begin(); indexItr != supervoxel->getScanBIndexVector()->end(); ++indexItr) {
-//
-//				PointT p = B->at(*indexItr);
-//
-//				p.r = 0;
-//				p.g = 255;
-//				p.b = 0;
-//
-//				newCloud->push_back(p);
-//			}
-//		}
+		//		if (showSupervoxel) {
+		//
+		//			for (indexItr = supervoxel->getScanBIndexVector()->begin(); indexItr != supervoxel->getScanBIndexVector()->end(); ++indexItr) {
+		//
+		//				PointT p = B->at(*indexItr);
+		//
+		//				p.r = 0;
+		//				p.g = 255;
+		//				p.b = 0;
+		//
+		//				newCloud->push_back(p);
+		//			}
+		//		}
 
 		counterB += supervoxel->getScanBIndexVector()->size();
 		cout << svLabel << '\t' << "A: " << counterA << '\t' << "B: " << counterB << endl;

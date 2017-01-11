@@ -25,7 +25,7 @@ void svrOptimize::optimizeUsingGaussNewton(Eigen::Affine3d& resultantTransform, 
 	int maxIteration = 20, iteration = 0;
 	bool debug = true, converged = false;
 	double tol = 1e-3, stepSize = 1.;
-	float lambda = 1e-1;
+	float lambda = 1e-3;
 
 	svr::SVMap::iterator svMapItr;
 	SData::ScanIndexVector::iterator pItr;
@@ -111,11 +111,18 @@ void svrOptimize::optimizeUsingGaussNewton(Eigen::Affine3d& resultantTransform, 
 
 		bool converged = true;
 		for (int i = 0; i < 6; i++) {
-			if (g(i) > tol) {
+
+			double gdiff = fabs((double)g(i));
+
+			if (gdiff > tol) {
 				converged = false;
 				break;
 			}
 		}
+
+		std::cout << "Iteration: " << iteration << std::endl;
+		std::cout << "Current Cost: " << currentCost << std::endl;
+		std::cout << "Gradient: " << std::endl << g << std::endl;
 
 		if (converged) {
 			resultantTransform = iterationTransform;
@@ -129,97 +136,111 @@ void svrOptimize::optimizeUsingGaussNewton(Eigen::Affine3d& resultantTransform, 
 			}
 		}
 
-		for (int i = 0; i < 6; i++) {
-			H(i,i) *= (lambda + 1);
-		}
-
-		Eigen::VectorXf poseStep(6,1);
-		poseStep = H.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(g);
-		poseStep = stepSize * poseStep;
-//		poseStep = stepSize * g;
-
-		std::cout << "Lambda: " << lambda << std::endl;
-		std::cout << "Iteration: " << iteration << std::endl;
-		std::cout << "Cost: " << currentCost << std::endl;
 		std::cout << "Hessian: " << std::endl << H << std::endl;
-		std::cout << "Gradient: " << std::endl << g << std::endl;
-		std::cout << "Pose Step: " << std::endl << poseStep << std::endl;
 
-		double predicted_x,predicted_y, predicted_z, predicted_roll, predicted_pitch, predicted_yaw;
+		Eigen::MatrixXf A = H;
 
-		predicted_x= x - poseStep(0);
-		predicted_y = y - poseStep(1);
-		predicted_z = z - poseStep(2);
-		predicted_roll = roll - poseStep(3);
-		predicted_pitch = pitch - poseStep(4);
-		predicted_yaw = yaw - poseStep(5);
 
-		iterationTransform = Eigen::Affine3d::Identity();
-		iterationTransform.translation() << predicted_x, predicted_y, predicted_z;
-		iterationTransform.rotate (Eigen::AngleAxisd (predicted_roll, Eigen::Vector3d::UnitX()));
-		iterationTransform.rotate (Eigen::AngleAxisd (predicted_pitch, Eigen::Vector3d::UnitY()));
-		iterationTransform.rotate(Eigen::AngleAxisd (predicted_yaw, Eigen::Vector3d::UnitZ()));
+		bool iterationComplete = false;
+		Eigen::VectorXf poseStep(6,1);
 
-		// transform Scan
-//		svr::PointCloudT::Ptr transformedScan =  boost::shared_ptr<svr::PointCloudT>(new svr::PointCloudT());
-		pcl::transformPointCloud(*scan2, *transformedScan, iterationTransform);
-		float newCost = 0;
+		while (!iterationComplete) {
 
-		// this iteration calcultes the cost
-		for (svMapItr = svMap->begin(); svMapItr != svMap->end(); ++svMapItr) {
+			// till cost doesnt decrease
+			// switch between gauss newton and gradient descent
+			std::cout << "Lambda: " << lambda << std::endl;
 
-			SData::Ptr supervoxel = svMapItr->second;
-
-			double d1 = supervoxel->getD1();
-			double d2 = supervoxel->getD2();
-			Eigen::Matrix3f covarianceInv = supervoxel->getCovarianceInverse();
-			Eigen::Matrix3f covariance = supervoxel->getCovariance();
-			Eigen::Vector4f mean = supervoxel->getCentroid();
-			Eigen::Vector3f U;
-			U << mean(0), mean(1), mean(2);
-
-			indexVector = supervoxel->getScanBIndexVector();
-
-			for (pItr = indexVector->begin(); pItr != indexVector->end(); ++pItr) {
-				// calculate hessian, gradient contribution of individual points
-				svr::PointT p = transformedScan->at(*pItr);
-				Eigen::Vector3f X;
-				X << p.x, p.y, p.z;
-
-				float power = (X-U).transpose() * covarianceInv * (X-U);
-				power = -d2 * power / 2;
-				double exponentPower = exp(power);
-				newCost += d1 * exponentPower;
+			A = H;
+			for (int i = 0; i < 6; i++) {
+				A(i,i) *= (lambda + 1);
 			}
+
+			poseStep = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(g);
+			poseStep = stepSize * poseStep;
+			//		poseStep = stepSize * g;
+			std::cout << "Pose Step: " << std::endl << poseStep << std::endl;
+
+			double predicted_x,predicted_y, predicted_z, predicted_roll, predicted_pitch, predicted_yaw;
+
+			predicted_x= x - poseStep(0);
+			predicted_y = y - poseStep(1);
+			predicted_z = z - poseStep(2);
+			predicted_roll = roll - poseStep(3);
+			predicted_pitch = pitch - poseStep(4);
+			predicted_yaw = yaw - poseStep(5);
+
+			iterationTransform = Eigen::Affine3d::Identity();
+			iterationTransform.translation() << predicted_x, predicted_y, predicted_z;
+			iterationTransform.rotate (Eigen::AngleAxisd (predicted_roll, Eigen::Vector3d::UnitX()));
+			iterationTransform.rotate (Eigen::AngleAxisd (predicted_pitch, Eigen::Vector3d::UnitY()));
+			iterationTransform.rotate(Eigen::AngleAxisd (predicted_yaw, Eigen::Vector3d::UnitZ()));
+
+			pcl::transformPointCloud(*scan2, *transformedScan, iterationTransform);
+			float newCost = 0;
+
+			// this iteration calcultes the cost
+			for (svMapItr = svMap->begin(); svMapItr != svMap->end(); ++svMapItr) {
+
+				SData::Ptr supervoxel = svMapItr->second;
+
+				double d1 = supervoxel->getD1();
+				double d2 = supervoxel->getD2();
+				Eigen::Matrix3f covarianceInv = supervoxel->getCovarianceInverse();
+				Eigen::Matrix3f covariance = supervoxel->getCovariance();
+				Eigen::Vector4f mean = supervoxel->getCentroid();
+				Eigen::Vector3f U;
+				U << mean(0), mean(1), mean(2);
+
+				indexVector = supervoxel->getScanBIndexVector();
+
+				for (pItr = indexVector->begin(); pItr != indexVector->end(); ++pItr) {
+					// calculate hessian, gradient contribution of individual points
+					svr::PointT p = transformedScan->at(*pItr);
+					Eigen::Vector3f X;
+					X << p.x, p.y, p.z;
+
+					float power = (X-U).transpose() * covarianceInv * (X-U);
+					power = -d2 * power / 2;
+					double exponentPower = exp(power);
+					newCost += d1 * exponentPower;
+				}
+			}
+
+			std::cout << "Cost after prediction: " << newCost << std::endl;
+
+			double diff = currentCost - newCost;
+
+			if (fabs(diff) < tol) {
+				// converged
+				resultantTransform = iterationTransform;
+				cost = newCost;
+				return;
+			}
+
+			if (diff > 0) {
+
+				std::cout << "Taking the step" << std::endl;
+
+				lambda /= 10;
+
+				x = predicted_x;
+				y = predicted_y;
+				z = predicted_z;
+				roll = predicted_roll;
+				pitch = predicted_pitch;
+				yaw = predicted_yaw;
+
+				iterationComplete = true;
+
+			} else {
+				std::cout << "Increasing lambda and trying again" << std::endl;
+				lambda *= 10;
+			}
+
+			// end lambda while
 		}
 
-		std::cout << "Cost after prediction: " << newCost << std::endl;
-
-		double diff = currentCost - newCost;
-
-		if (fabs(diff) < tol) {
-			// converged
-			resultantTransform = iterationTransform;
-			cost = newCost;
-			return;
-		}
-
-		if (diff > 0) {
-
-			lambda /= 10;
-
-			x = predicted_x;
-			y = predicted_y;
-			z = predicted_z;
-			roll = predicted_roll;
-			pitch = predicted_pitch;
-			yaw = predicted_yaw;
-		} else {
-
-			lambda *= 10;
-		}
-
-		// end while
+		// end iteration while
 	}
 
 	resultantTransform = iterationTransform;
