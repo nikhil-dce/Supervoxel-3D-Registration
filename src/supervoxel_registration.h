@@ -4,6 +4,8 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/visualization/point_picking_event.h>
+#include <pcl/visualization/pcl_plotter.h>
+
 
 #include <fstream>
 #include <boost/unordered_map.hpp>
@@ -24,7 +26,7 @@
 #define NORM_DZ 0.1
 
 // Min points to be present in supevoxel for MI consideration
-#define MIN_POINTS_IN_SUPERVOXEL 30
+#define MIN_POINTS_IN_SUPERVOXEL 20
 
 #define PROBABILITY_OUTLIERS_SUPERVOXEL 0.35
 
@@ -105,6 +107,93 @@ public:
 	setDebugScanString(std::string s) {
 		debugScanString = s;
 	}
+
+	void preparePlotData();
+
+	void plotOptimizationIterationsForX(
+			pcl::visualization::PCLPlotter* plotter,
+			Eigen::Affine3d& baseT,
+			float& start,
+			float& end,
+			float& step);
+
+	void plotCostFunctionForX(
+			pcl::visualization::PCLPlotter* plotter,
+			Eigen::Affine3d& baseT,
+			float& start,
+			float& end,
+			float& step);
+
+	void plotOptimizationIterationsForY(
+			pcl::visualization::PCLPlotter* plotter,
+			Eigen::Affine3d& baseT,
+			float& start,
+			float& end,
+			float& step);
+
+	void plotCostFunctionForY(
+			pcl::visualization::PCLPlotter* plotter,
+			Eigen::Affine3d& baseT,
+			float& start,
+			float& end,
+			float& step);
+
+
+	void plotCostFunctionForZ(
+			pcl::visualization::PCLPlotter* plotter,
+			Eigen::Affine3d& baseT,
+			float& start,
+			float& end,
+			float& step);
+
+	void plotOptimizationIterationsForZ(
+			pcl::visualization::PCLPlotter* plotter,
+			Eigen::Affine3d& baseT,
+			float& start,
+			float& end,
+			float& step);
+
+	void plotCostFunctionForRoll(
+				pcl::visualization::PCLPlotter* plotter,
+				Eigen::Affine3d& baseT,
+				float& start,
+				float& end,
+				float& step);
+
+	void plotOptimizationIterationsForRoll(
+				pcl::visualization::PCLPlotter* plotter,
+				Eigen::Affine3d& baseT,
+				float& start,
+				float& end,
+				float& step);
+
+	void plotCostFunctionForPitch(
+				pcl::visualization::PCLPlotter* plotter,
+				Eigen::Affine3d& baseT,
+				float& start,
+				float& end,
+				float& step);
+
+	void plotOptimizationIterationsForPitch(
+				pcl::visualization::PCLPlotter* plotter,
+				Eigen::Affine3d& baseT,
+				float& start,
+				float& end,
+				float& step);
+
+	void plotCostFunctionForYaw(
+				pcl::visualization::PCLPlotter* plotter,
+				Eigen::Affine3d& baseT,
+				float& start,
+				float& end,
+				float& step);
+
+	void plotOptimizationIterationsForYaw(
+				pcl::visualization::PCLPlotter* plotter,
+				Eigen::Affine3d& baseT,
+				float& start,
+				float& end,
+				float& step);
 
 protected:
 

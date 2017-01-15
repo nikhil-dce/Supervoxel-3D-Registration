@@ -24,7 +24,7 @@ void svrOptimize::optimizeUsingGaussNewton(Eigen::Affine3d& resultantTransform, 
 
 	int maxIteration = 20, iteration = 0;
 	bool debug = true, converged = false;
-	double tol = 1e-3, stepSize = 1.;
+	double tol = 1e-3, stepSize = 1., poseTol = 1e-4;
 	float lambda = 1e-3;
 
 	svr::SVMap::iterator svMapItr;
@@ -40,7 +40,6 @@ void svrOptimize::optimizeUsingGaussNewton(Eigen::Affine3d& resultantTransform, 
 	while (!converged && iteration < maxIteration) {
 
 		iteration++;
-		currentCost = 0;
 		iterationTransform = Eigen::Affine3d::Identity();
 		iterationTransform.translation() << x,y,z;
 		iterationTransform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
@@ -51,63 +50,11 @@ void svrOptimize::optimizeUsingGaussNewton(Eigen::Affine3d& resultantTransform, 
 		pcl::transformPointCloud(*scan2, *transformedScan, iterationTransform);
 
 		// Calculate Hessian and Gradient at last pose
-
 		H.setZero();
 		g.setZero();
+		currentCost = 0;
 
-		// this iteration takes time
-		for (svMapItr = svMap->begin(); svMapItr != svMap->end(); ++svMapItr) {
-
-			SData::Ptr supervoxel = svMapItr->second;
-
-			double d1 = supervoxel->getD1();
-			double d2 = supervoxel->getD2();
-
-			Eigen::Matrix3f covarianceInv = supervoxel->getCovarianceInverse();
-			Eigen::Matrix3f covariance = supervoxel->getCovariance();
-			Eigen::Vector4f mean = supervoxel->getCentroid();
-			Eigen::Vector3f U;
-			U << mean(0), mean(1), mean(2);
-
-			indexVector = supervoxel->getScanBIndexVector();
-
-			for (pItr = indexVector->begin(); pItr != indexVector->end(); ++pItr) {
-				// calculate hessian, gradient contribution of individual points
-				svr::PointT p = transformedScan->at(*pItr);
-				Eigen::Vector3f X;
-				X << p.x, p.y, p.z;
-
-				// Using small angle approximation
-				Eigen::MatrixXf Jacobian (3,6);
-				Jacobian << 1,0,0,0,X(2),-X(1),
-								0,1,0,-X(2),0,X(0),
-								0,0,1,X(1),-X(0),0;
-
-				float power = (X-U).transpose() * covarianceInv * (X-U);
-				power = -d2 * power / 2;
-				double exponentPower = exp(power);
-
-				currentCost += d1 * exponentPower;
-
-				//g = g + (-d1 * d2 * exponentPower * (X-U).transpose() * covarianceInv * Jacobian);
-				g = g + (-d1 * d2 * exponentPower * Jacobian.transpose() * covarianceInv * (X-U));
-
-				for (int i = 0; i < 6; i++) {
-					for (int j = i; j < 6; j++) {
-						double r = -d1*d2*exponentPower;
-
-						double r2 = -d2;
-						r2 *= (X-U).transpose()*covarianceInv*Jacobian.col(i);
-						r2 *= (X-U).transpose()*covarianceInv*Jacobian.col(j);
-
-						double r3 = Jacobian.col(j).transpose()*covarianceInv*Jacobian.col(i);
-						r = r * (r2+r3);
-						H(i,j) = H(i,j) + r;
-					}
-				}
-
-			}
-		}
+		computeCostGradientHessian(currentCost, g, H, transformedScan);
 
 		bool converged = true;
 		for (int i = 0; i < 6; i++) {
@@ -160,6 +107,28 @@ void svrOptimize::optimizeUsingGaussNewton(Eigen::Affine3d& resultantTransform, 
 			//		poseStep = stepSize * g;
 			std::cout << "Pose Step: " << std::endl << poseStep << std::endl;
 
+			//
+
+			bool iterationProgressing = false;
+
+			for (int k=0; k<6; k++) {
+				double poseDiff = fabs((double)poseStep(k));
+				if (poseDiff > poseTol) {
+					iterationProgressing = true;
+					break;
+				}
+			}
+
+			if (!iterationProgressing) {
+				// not converging
+				std::cout << "Pose step too small" << std::endl;
+				resultantTransform = iterationTransform;
+				cost = currentCost;
+				return;
+			}
+
+			// change pose tol for rotation and translation
+
 			double predicted_x,predicted_y, predicted_z, predicted_roll, predicted_pitch, predicted_yaw;
 
 			predicted_x= x - poseStep(0);
@@ -176,48 +145,23 @@ void svrOptimize::optimizeUsingGaussNewton(Eigen::Affine3d& resultantTransform, 
 			iterationTransform.rotate(Eigen::AngleAxisd (predicted_yaw, Eigen::Vector3d::UnitZ()));
 
 			pcl::transformPointCloud(*scan2, *transformedScan, iterationTransform);
-			float newCost = 0;
+			double newCost = 0;
 
-			// this iteration calcultes the cost
-			for (svMapItr = svMap->begin(); svMapItr != svMap->end(); ++svMapItr) {
-
-				SData::Ptr supervoxel = svMapItr->second;
-
-				double d1 = supervoxel->getD1();
-				double d2 = supervoxel->getD2();
-				Eigen::Matrix3f covarianceInv = supervoxel->getCovarianceInverse();
-				Eigen::Matrix3f covariance = supervoxel->getCovariance();
-				Eigen::Vector4f mean = supervoxel->getCentroid();
-				Eigen::Vector3f U;
-				U << mean(0), mean(1), mean(2);
-
-				indexVector = supervoxel->getScanBIndexVector();
-
-				for (pItr = indexVector->begin(); pItr != indexVector->end(); ++pItr) {
-					// calculate hessian, gradient contribution of individual points
-					svr::PointT p = transformedScan->at(*pItr);
-					Eigen::Vector3f X;
-					X << p.x, p.y, p.z;
-
-					float power = (X-U).transpose() * covarianceInv * (X-U);
-					power = -d2 * power / 2;
-					double exponentPower = exp(power);
-					newCost += d1 * exponentPower;
-				}
-			}
+			computeCost(newCost, transformedScan);
 
 			std::cout << "Cost after prediction: " << newCost << std::endl;
 
 			double diff = currentCost - newCost;
 
-			if (fabs(diff) < tol) {
-				// converged
-				resultantTransform = iterationTransform;
-				cost = newCost;
-				return;
-			}
-
 			if (diff > 0) {
+
+				if (fabs(diff) < tol) {
+					// converged
+					cout << "Change in cost is very minute. Ending iteration" << std::endl;
+					resultantTransform = iterationTransform;
+					cost = newCost;
+					return;
+				}
 
 				std::cout << "Taking the step" << std::endl;
 
@@ -247,8 +191,107 @@ void svrOptimize::optimizeUsingGaussNewton(Eigen::Affine3d& resultantTransform, 
 	cost = currentCost;
 }
 
+void svrOptimize::computeCost(double &cost, svr::PointCloudT::Ptr transformedScan) {
 
+	cost = 0;
+	svr::SVMap* svMap = opt_data.svMap;
+	svr::SVMap::iterator svMapItr;
+	SData::ScanIndexVector::iterator pItr;
+	SData::ScanIndexVectorPtr indexVector;
 
+	//
+	// this iteration calcultes the cost
+	for (svMapItr = svMap->begin(); svMapItr != svMap->end(); ++svMapItr) {
+
+		SData::Ptr supervoxel = svMapItr->second;
+
+		double d1 = supervoxel->getD1();
+		double d2 = supervoxel->getD2();
+		Eigen::Matrix3f covarianceInv = supervoxel->getCovarianceInverse();
+		Eigen::Matrix3f covariance = supervoxel->getCovariance();
+		Eigen::Vector4f mean = supervoxel->getCentroid();
+		Eigen::Vector3f U;
+		U << mean(0), mean(1), mean(2);
+
+		indexVector = supervoxel->getScanBIndexVector();
+
+		for (pItr = indexVector->begin(); pItr != indexVector->end(); ++pItr) {
+			// calculate hessian, gradient contribution of individual points
+			svr::PointT p = transformedScan->at(*pItr);
+			Eigen::Vector3f X;
+			X << p.x, p.y, p.z;
+
+			float power = (X-U).transpose() * covarianceInv * (X-U);
+			power = -d2 * power / 2;
+			double exponentPower = exp(power);
+			cost += d1 * exponentPower;
+		}
+	}
+
+}
+
+void svrOptimize::computeCostGradientHessian(double &cost, Eigen::VectorXf& g,
+		Eigen::MatrixXf& H, svr::PointCloudT::Ptr transformedScan) {
+
+	svr::SVMap* svMap = opt_data.svMap;
+	svr::SVMap::iterator svMapItr;
+	SData::ScanIndexVector::iterator pItr;
+	SData::ScanIndexVectorPtr indexVector;
+
+	// this iteration takes time
+	for (svMapItr = svMap->begin(); svMapItr != svMap->end(); ++svMapItr) {
+
+		SData::Ptr supervoxel = svMapItr->second;
+
+		double d1 = supervoxel->getD1();
+		double d2 = supervoxel->getD2();
+
+		Eigen::Matrix3f covarianceInv = supervoxel->getCovarianceInverse();
+		Eigen::Matrix3f covariance = supervoxel->getCovariance();
+		Eigen::Vector4f mean = supervoxel->getCentroid();
+		Eigen::Vector3f U;
+		U << mean(0), mean(1), mean(2);
+
+		indexVector = supervoxel->getScanBIndexVector();
+
+		for (pItr = indexVector->begin(); pItr != indexVector->end(); ++pItr) {
+			// calculate hessian, gradient contribution of individual points
+			svr::PointT p = transformedScan->at(*pItr);
+			Eigen::Vector3f X;
+			X << p.x, p.y, p.z;
+
+			// Using small angle approximation
+			Eigen::MatrixXf Jacobian (3,6);
+			Jacobian << 1,0,0,0,X(2),-X(1),
+					0,1,0,-X(2),0,X(0),
+					0,0,1,X(1),-X(0),0;
+
+			float power = (X-U).transpose() * covarianceInv * (X-U);
+			power = -d2 * power / 2;
+			double exponentPower = exp(power);
+
+			cost += d1 * exponentPower;
+
+			//g = g + (-d1 * d2 * exponentPower * (X-U).transpose() * covarianceInv * Jacobian);
+			g = g + (-d1 * d2 * exponentPower * Jacobian.transpose() * covarianceInv * (X-U));
+
+			for (int i = 0; i < 6; i++) {
+				for (int j = i; j < 6; j++) {
+					double r = -d1*d2*exponentPower;
+
+					double r2 = -d2;
+					r2 *= (X-U).transpose()*covarianceInv*Jacobian.col(i);
+					r2 *= (X-U).transpose()*covarianceInv*Jacobian.col(j);
+
+					double r3 = Jacobian.col(j).transpose()*covarianceInv*Jacobian.col(i);
+					r = r * (r2+r3);
+					H(i,j) = H(i,j) + r;
+				}
+			}
+
+		}
+	}
+}
 
 
 

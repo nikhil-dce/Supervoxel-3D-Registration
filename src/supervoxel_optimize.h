@@ -41,6 +41,10 @@ public:
 
 	void optimizeUsingGaussNewton(Eigen::Affine3d& resultantTransform, float& cost);
 
+	void computeCost(double& cost, svr::PointCloudT::Ptr transformedScan);
+
+	void computeCostGradientHessian(double &cost, Eigen::VectorXf& g, Eigen::MatrixXf& H, svr::PointCloudT::Ptr transformedScan);
+
 private:
 
 //	double inline computePointFCost (svr::PointT p, Eigen::Vector4f& mean, Eigen::Matrix3f& covarianceInverse, double d1, double d2);

@@ -131,7 +131,7 @@ SupervoxelRegistration::alignScans(Eigen::Affine3d& final_transform, Eigen::Affi
 	double epsilon = 5e-4;
 	double epsilon_rot = 2e-3;
 	double epsilon_cost = 2e-1;
-	int maxIteration = 200;
+	int maxIteration = 20;
 
 	cout << "Initial T: " << std::endl << trans_last.matrix(); cout << std::endl;
 
@@ -203,8 +203,7 @@ SupervoxelRegistration::alignScans(Eigen::Affine3d& final_transform, Eigen::Affi
 
 		/* check convergence */
 		iteration++;
-		if (_SVR_DEBUG_)
-			cout << "Iteration: " << iteration << " delta = " << delta << endl;
+		cout << "Iteration: " << iteration << " delta = " << delta << endl;
 
 		//		float costDiff = fabs(cost - lastItrCost) / epsilon_cost ;
 		//		if (costDiff > delta)
@@ -641,8 +640,8 @@ SupervoxelRegistration::createSuperVoxelMappingForScan2 (PointCloudT::Ptr transf
 					SData::Ptr supervoxel = supervoxelMap[label];
 					supervoxel->getScanBIndexVector()->push_back(i);
 				}
-//				else
-//					searchForSupervoxel = true;
+				else
+					searchForSupervoxel = true;
 
 			} else {
 				// leaf exists in scan 1 but doesn't have a supervoxel label
@@ -857,9 +856,10 @@ void
 SupervoxelRegistration::showTestSuperVoxel(int supevoxelLabel) {
 
 	std::map <uint32_t, pcl::Supervoxel<PointT>::Ptr> supervoxelClusters = initializeVoxels();
-	std::cout << "Number of supervoxels: " << supervoxelMap.size() << std::endl;
 
 	createSuperVoxelMappingForScan1();
+	std::cout << "Number of supervoxels: " << supervoxelMap.size() << std::endl;
+
 	createKDTreeForSupervoxels();
 	calculateScan2Normals();
 	createSuperVoxelMappingForScan2(B, normalsB, 1);
@@ -969,9 +969,770 @@ SupervoxelRegistration::showTestSuperVoxel(int supevoxelLabel) {
 	showPointCloud(newCloud);
 }
 
+void SupervoxelRegistration::preparePlotData() {
 
+	std::map <uint32_t, pcl::Supervoxel<PointT>::Ptr> supervoxelClusters = initializeVoxels();
+	createSuperVoxelMappingForScan1();
+	std::cout << "Number of supervoxels: " << supervoxelMap.size() << std::endl;
 
+	createKDTreeForSupervoxels();
+	calculateScan2Normals();
 
+}
 
+void SupervoxelRegistration::plotCostFunctionForX(
+		pcl::visualization::PCLPlotter* plotter,
+		Eigen::Affine3d& baseT,
+		float& start,
+		float& end,
+		float& step) {
 
+	if (start > end)
+		return;
 
+	std::vector<std::pair<double, double> > plotData;
+
+	// do for plotStart to plotEnd at ever plotStep increment
+
+	double x,y,z,roll,pitch,yaw;
+	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
+	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+
+	Eigen::Affine3d transform, normalTransformation;
+	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
+	PointCloudXYZ::Ptr transformedNormalsB = boost::shared_ptr <PointCloudXYZ> (new PointCloudXYZ ());
+
+	x = start;
+
+	while (x <= end) {
+
+		// Point Cloud transformation
+		transform = Eigen::Affine3d::Identity();
+		transform.translation() << x,y,z;
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+
+		transformPointCloud (*B, *transformedScan, transform);
+
+		// Normal Transformation
+		normalTransformation = Eigen::Affine3d::Identity();
+
+		// copy rotation matrix
+		for(int k = 0; k < 3; k++) {
+			for(int l = 0; l < 3; l++) {
+				normalTransformation.matrix()(k,l) = transform.matrix()(k,l);
+			}
+		}
+
+		transformPointCloud (*normalsB, *transformedNormalsB, normalTransformation);
+
+		for (int pi = 0; pi<transformedNormalsB->size(); ++pi) {
+			pcl::PointXYZ pN = transformedNormalsB->at(pi);
+			pcl::flipNormalTowardsViewpoint(transformedScan->at(pi), 0, 0, 0, pN.x, pN.y, pN.z);
+		}
+
+		createSuperVoxelMappingForScan2(transformedScan, transformedNormalsB, 1);
+
+		svr_optimize::svr_opti_data opti_data;
+		opti_data.scan2 = B;
+		opti_data.svMap = &supervoxelMap;
+		double cost;
+
+		svr_optimize::svrOptimize optimizer;
+		optimizer.setOptimizeData(opti_data);
+		optimizer.computeCost(cost, transformedScan);
+
+		plotData.push_back(std::pair<double, double>(x, cost));
+		std::cout << "x: " << x << " Cost: " << cost << std::endl;
+
+		x += step;
+	}
+
+	plotter->addPlotData(plotData, "WRT_X");
+
+}
+
+void SupervoxelRegistration::plotCostFunctionForY(
+		pcl::visualization::PCLPlotter* plotter,
+		Eigen::Affine3d& baseT,
+		float& start,
+		float& end,
+		float& step) {
+
+	if (start > end)
+		return;
+
+	std::vector<std::pair<double, double> > plotData;
+
+	// do for plotStart to plotEnd at ever plotStep increment
+
+	double x,y,z,roll,pitch,yaw;
+	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
+	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+
+	Eigen::Affine3d transform, normalTransformation;
+	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
+	PointCloudXYZ::Ptr transformedNormalsB = boost::shared_ptr <PointCloudXYZ> (new PointCloudXYZ ());
+
+	y = start;
+
+	while (y <= end) {
+
+		// Point Cloud transformation
+		transform = Eigen::Affine3d::Identity();
+		transform.translation() << x,y,z;
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+
+		transformPointCloud (*B, *transformedScan, transform);
+
+		// Normal Transformation
+		normalTransformation = Eigen::Affine3d::Identity();
+
+		// copy rotation matrix
+		for(int k = 0; k < 3; k++) {
+			for(int l = 0; l < 3; l++) {
+				normalTransformation.matrix()(k,l) = transform.matrix()(k,l);
+			}
+		}
+
+		transformPointCloud (*normalsB, *transformedNormalsB, normalTransformation);
+
+		for (int pi = 0; pi<transformedNormalsB->size(); ++pi) {
+			pcl::PointXYZ pN = transformedNormalsB->at(pi);
+			pcl::flipNormalTowardsViewpoint(transformedScan->at(pi), 0, 0, 0, pN.x, pN.y, pN.z);
+		}
+
+		createSuperVoxelMappingForScan2(transformedScan, transformedNormalsB, 1);
+
+		svr_optimize::svr_opti_data opti_data;
+		opti_data.scan2 = B;
+		opti_data.svMap = &supervoxelMap;
+		double cost;
+
+		svr_optimize::svrOptimize optimizer;
+		optimizer.setOptimizeData(opti_data);
+		optimizer.computeCost(cost, transformedScan);
+
+		plotData.push_back(std::pair<double, double>(y, cost));
+		std::cout << "y: " << y << " Cost: " << cost << std::endl;
+
+		y += step;
+	}
+
+	plotter->addPlotData(plotData, "WRT_Y");
+
+}
+
+void SupervoxelRegistration::plotCostFunctionForZ(
+		pcl::visualization::PCLPlotter* plotter,
+		Eigen::Affine3d& baseT,
+		float& start,
+		float& end,
+		float& step) {
+
+	if (start > end)
+		return;
+
+	std::vector<std::pair<double, double> > plotData;
+
+	// do for plotStart to plotEnd at ever plotStep increment
+
+	double x,y,z,roll,pitch,yaw;
+	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
+	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+
+	Eigen::Affine3d transform, normalTransformation;
+	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
+	PointCloudXYZ::Ptr transformedNormalsB = boost::shared_ptr <PointCloudXYZ> (new PointCloudXYZ ());
+
+	z = start;
+
+	while (z <= end) {
+
+		// Point Cloud transformation
+		transform = Eigen::Affine3d::Identity();
+		transform.translation() << x,y,z;
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+
+		transformPointCloud (*B, *transformedScan, transform);
+
+		// Normal Transformation
+		normalTransformation = Eigen::Affine3d::Identity();
+
+		// copy rotation matrix
+		for(int k = 0; k < 3; k++) {
+			for(int l = 0; l < 3; l++) {
+				normalTransformation.matrix()(k,l) = transform.matrix()(k,l);
+			}
+		}
+
+		transformPointCloud (*normalsB, *transformedNormalsB, normalTransformation);
+
+		for (int pi = 0; pi<transformedNormalsB->size(); ++pi) {
+			pcl::PointXYZ pN = transformedNormalsB->at(pi);
+			pcl::flipNormalTowardsViewpoint(transformedScan->at(pi), 0, 0, 0, pN.x, pN.y, pN.z);
+		}
+
+		createSuperVoxelMappingForScan2(transformedScan, transformedNormalsB, 1);
+
+		svr_optimize::svr_opti_data opti_data;
+		opti_data.scan2 = B;
+		opti_data.svMap = &supervoxelMap;
+		double cost;
+
+		svr_optimize::svrOptimize optimizer;
+		optimizer.setOptimizeData(opti_data);
+		optimizer.computeCost(cost, transformedScan);
+
+		plotData.push_back(std::pair<double, double>(z, cost));
+		std::cout << "z: " << z << " Cost: " << cost << std::endl;
+
+		z += step;
+	}
+
+	plotter->addPlotData(plotData, "WRT_Z");
+
+}
+
+void SupervoxelRegistration::plotCostFunctionForRoll(
+		pcl::visualization::PCLPlotter* plotter,
+		Eigen::Affine3d& baseT,
+		float& start,
+		float& end,
+		float& step) {
+
+	if (start > end)
+		return;
+
+	std::vector<std::pair<double, double> > plotData;
+
+	// do for plotStart to plotEnd at ever plotStep increment
+
+	double x,y,z,roll,pitch,yaw;
+	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
+	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+
+	Eigen::Affine3d transform, normalTransformation;
+	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
+	PointCloudXYZ::Ptr transformedNormalsB = boost::shared_ptr <PointCloudXYZ> (new PointCloudXYZ ());
+
+	roll = start;
+
+	while (roll <= end) {
+
+		// Point Cloud transformation
+		transform = Eigen::Affine3d::Identity();
+		transform.translation() << x,y,z;
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+
+		transformPointCloud (*B, *transformedScan, transform);
+
+		// Normal Transformation
+		normalTransformation = Eigen::Affine3d::Identity();
+
+		// copy rotation matrix
+		for(int k = 0; k < 3; k++) {
+			for(int l = 0; l < 3; l++) {
+				normalTransformation.matrix()(k,l) = transform.matrix()(k,l);
+			}
+		}
+
+		transformPointCloud (*normalsB, *transformedNormalsB, normalTransformation);
+
+		for (int pi = 0; pi<transformedNormalsB->size(); ++pi) {
+			pcl::PointXYZ pN = transformedNormalsB->at(pi);
+			pcl::flipNormalTowardsViewpoint(transformedScan->at(pi), 0, 0, 0, pN.x, pN.y, pN.z);
+		}
+
+		createSuperVoxelMappingForScan2(transformedScan, transformedNormalsB, 1);
+
+		svr_optimize::svr_opti_data opti_data;
+		opti_data.svMap = &supervoxelMap;
+		double cost = 0;
+		svr_optimize::svrOptimize optimizer;
+		optimizer.setOptimizeData(opti_data);
+		optimizer.computeCost(cost, transformedScan);
+
+		plotData.push_back(std::pair<double, double>(roll, cost));
+		std::cout << "roll: " << roll << " Cost: " << cost << std::endl;
+
+		roll += step;
+	}
+
+	plotter->addPlotData(plotData, "WRT_ROLL");
+
+}
+
+void SupervoxelRegistration::plotCostFunctionForPitch(
+		pcl::visualization::PCLPlotter* plotter,
+		Eigen::Affine3d& baseT,
+		float& start,
+		float& end,
+		float& step) {
+
+	if (start > end)
+		return;
+
+	std::vector<std::pair<double, double> > plotData;
+
+	// do for plotStart to plotEnd at ever plotStep increment
+
+	double x,y,z,roll,pitch,yaw;
+	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
+	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+
+	Eigen::Affine3d transform, normalTransformation;
+	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
+	PointCloudXYZ::Ptr transformedNormalsB = boost::shared_ptr <PointCloudXYZ> (new PointCloudXYZ ());
+
+	pitch = start;
+
+	while (pitch <= end) {
+
+		// Point Cloud transformation
+		transform = Eigen::Affine3d::Identity();
+		transform.translation() << x,y,z;
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+
+		transformPointCloud (*B, *transformedScan, transform);
+
+		// Normal Transformation
+		normalTransformation = Eigen::Affine3d::Identity();
+
+		// copy rotation matrix
+		for(int k = 0; k < 3; k++) {
+			for(int l = 0; l < 3; l++) {
+				normalTransformation.matrix()(k,l) = transform.matrix()(k,l);
+			}
+		}
+
+		transformPointCloud (*normalsB, *transformedNormalsB, normalTransformation);
+
+		for (int pi = 0; pi<transformedNormalsB->size(); ++pi) {
+			pcl::PointXYZ pN = transformedNormalsB->at(pi);
+			pcl::flipNormalTowardsViewpoint(transformedScan->at(pi), 0, 0, 0, pN.x, pN.y, pN.z);
+		}
+
+		createSuperVoxelMappingForScan2(transformedScan, transformedNormalsB, 1);
+
+		svr_optimize::svr_opti_data opti_data;
+		opti_data.svMap = &supervoxelMap;
+		double cost = 0;
+		svr_optimize::svrOptimize optimizer;
+		optimizer.setOptimizeData(opti_data);
+		optimizer.computeCost(cost, transformedScan);
+
+		plotData.push_back(std::pair<double, double>(pitch, cost));
+		std::cout << "pitch: " << pitch << " Cost: " << cost << std::endl;
+
+		pitch += step;
+	}
+
+	plotter->addPlotData(plotData, "WRT_PITCH");
+
+}
+
+void SupervoxelRegistration::plotCostFunctionForYaw(
+		pcl::visualization::PCLPlotter* plotter,
+		Eigen::Affine3d& baseT,
+		float& start,
+		float& end,
+		float& step) {
+
+	if (start > end)
+		return;
+
+	std::vector<std::pair<double, double> > plotData;
+
+	// do for plotStart to plotEnd at ever plotStep increment
+
+	double x,y,z,roll,pitch,yaw;
+	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
+	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+
+	Eigen::Affine3d transform, normalTransformation;
+	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
+	PointCloudXYZ::Ptr transformedNormalsB = boost::shared_ptr <PointCloudXYZ> (new PointCloudXYZ ());
+
+	yaw = start;
+
+	while (yaw <= end) {
+
+		// Point Cloud transformation
+		transform = Eigen::Affine3d::Identity();
+		transform.translation() << x,y,z;
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+
+		transformPointCloud (*B, *transformedScan, transform);
+
+		// Normal Transformation
+		normalTransformation = Eigen::Affine3d::Identity();
+
+		// copy rotation matrix
+		for(int k = 0; k < 3; k++) {
+			for(int l = 0; l < 3; l++) {
+				normalTransformation.matrix()(k,l) = transform.matrix()(k,l);
+			}
+		}
+
+		transformPointCloud (*normalsB, *transformedNormalsB, normalTransformation);
+
+		for (int pi = 0; pi<transformedNormalsB->size(); ++pi) {
+			pcl::PointXYZ pN = transformedNormalsB->at(pi);
+			pcl::flipNormalTowardsViewpoint(transformedScan->at(pi), 0, 0, 0, pN.x, pN.y, pN.z);
+		}
+
+		createSuperVoxelMappingForScan2(transformedScan, transformedNormalsB, 1);
+
+		svr_optimize::svr_opti_data opti_data;
+		opti_data.svMap = &supervoxelMap;
+		double cost = 0;
+		svr_optimize::svrOptimize optimizer;
+		optimizer.setOptimizeData(opti_data);
+		optimizer.computeCost(cost, transformedScan);
+
+		plotData.push_back(std::pair<double, double>(yaw, cost));
+		std::cout << "yaw: " << yaw << " Cost: " << cost << std::endl;
+
+		yaw += step;
+	}
+
+	plotter->addPlotData(plotData, "WRT_YAW");
+
+}
+
+void SupervoxelRegistration::plotOptimizationIterationsForX(
+		pcl::visualization::PCLPlotter* plotter,
+		Eigen::Affine3d& baseT,
+		float& start,
+		float& end,
+		float& step) {
+
+	if (start > end)
+		return;
+
+	createSuperVoxelMappingForScan2(B, normalsB, 1);
+
+	std::vector<std::pair<double, double> > plotData;
+
+	// do for plotStart to plotEnd at ever plotStep increment
+
+	double x,y,z,roll,pitch,yaw;
+	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
+	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+
+	Eigen::Affine3d transform;
+	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
+
+	x = start;
+
+	svr_optimize::svr_opti_data opti_data;
+	opti_data.svMap = &supervoxelMap;
+
+	svr_optimize::svrOptimize optimizer;
+	optimizer.setOptimizeData(opti_data);
+	while (x <= end) {
+
+		// Point Cloud transformation
+		transform = Eigen::Affine3d::Identity();
+		transform.translation() << x,y,z;
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+
+		transformPointCloud (*B, *transformedScan, transform);
+
+		double cost = 0;
+		optimizer.computeCost(cost, transformedScan);
+
+		plotData.push_back(std::pair<double, double>(x, cost));
+		std::cout << "x: " << x << " Cost: " << cost << std::endl;
+
+		x += step;
+	}
+
+	plotter->addPlotData(plotData, "WRT_X");
+
+}
+
+void SupervoxelRegistration::plotOptimizationIterationsForY(
+		pcl::visualization::PCLPlotter* plotter,
+		Eigen::Affine3d& baseT,
+		float& start,
+		float& end,
+		float& step) {
+
+	if (start > end)
+		return;
+
+	createSuperVoxelMappingForScan2(B, normalsB, 1);
+
+	std::vector<std::pair<double, double> > plotData;
+
+	// do for plotStart to plotEnd at ever plotStep increment
+
+	double x,y,z,roll,pitch,yaw;
+	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
+	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+
+	Eigen::Affine3d transform;
+	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
+
+	y = start;
+
+	svr_optimize::svr_opti_data opti_data;
+	opti_data.svMap = &supervoxelMap;
+
+	svr_optimize::svrOptimize optimizer;
+	optimizer.setOptimizeData(opti_data);
+
+	while (y <= end) {
+
+		// Point Cloud transformation
+		transform = Eigen::Affine3d::Identity();
+		transform.translation() << x,y,z;
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+
+		transformPointCloud (*B, *transformedScan, transform);
+
+		double cost = 0;
+		optimizer.computeCost(cost, transformedScan);
+
+		plotData.push_back(std::pair<double, double>(y, cost));
+		std::cout << "y: " << y << " Cost: " << cost << std::endl;
+
+		y += step;
+	}
+
+	plotter->addPlotData(plotData, "WRT_Y");
+
+}
+
+void SupervoxelRegistration::plotOptimizationIterationsForZ(
+		pcl::visualization::PCLPlotter* plotter,
+		Eigen::Affine3d& baseT,
+		float& start,
+		float& end,
+		float& step) {
+
+	if (start > end)
+		return;
+
+	createSuperVoxelMappingForScan2(B, normalsB, 1);
+
+	std::vector<std::pair<double, double> > plotData;
+
+	// do for plotStart to plotEnd at ever plotStep increment
+
+	double x,y,z,roll,pitch,yaw;
+	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
+	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+
+	Eigen::Affine3d transform;
+	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
+
+	z = start;
+	svr_optimize::svr_opti_data opti_data;
+	opti_data.svMap = &supervoxelMap;
+
+	svr_optimize::svrOptimize optimizer;
+	optimizer.setOptimizeData(opti_data);
+
+	while (z <= end) {
+
+		// Point Cloud transformation
+		transform = Eigen::Affine3d::Identity();
+		transform.translation() << x,y,z;
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+
+		transformPointCloud (*B, *transformedScan, transform);
+
+		double cost = 0;
+		optimizer.computeCost(cost, transformedScan);
+
+		plotData.push_back(std::pair<double, double>(z, cost));
+		std::cout << "z: " << z << " Cost: " << cost << std::endl;
+
+		z += step;
+	}
+
+	plotter->addPlotData(plotData, "WRT_Z");
+
+}
+
+void SupervoxelRegistration::plotOptimizationIterationsForRoll(
+		pcl::visualization::PCLPlotter* plotter,
+		Eigen::Affine3d& baseT,
+		float& start,
+		float& end,
+		float& step) {
+
+	if (start > end)
+		return;
+
+	createSuperVoxelMappingForScan2(B, normalsB, 1);
+
+	std::vector<std::pair<double, double> > plotData;
+
+	// do for plotStart to plotEnd at ever plotStep increment
+
+	double x,y,z,roll,pitch,yaw;
+	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
+	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+
+	Eigen::Affine3d transform;
+	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
+
+	roll = start;
+	svr_optimize::svr_opti_data opti_data;
+	opti_data.svMap = &supervoxelMap;
+
+	svr_optimize::svrOptimize optimizer;
+	optimizer.setOptimizeData(opti_data);
+
+	while (roll <= end) {
+
+		// Point Cloud transformation
+		transform = Eigen::Affine3d::Identity();
+		transform.translation() << x,y,z;
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+
+		transformPointCloud (*B, *transformedScan, transform);
+
+		double cost = 0;
+		optimizer.computeCost(cost, transformedScan);
+
+		plotData.push_back(std::pair<double, double>(roll, cost));
+		std::cout << "roll: " << roll << " Cost: " << cost << std::endl;
+
+		roll += step;
+	}
+
+	plotter->addPlotData(plotData, "WRT_ROLL");
+
+}
+
+void SupervoxelRegistration::plotOptimizationIterationsForPitch(
+		pcl::visualization::PCLPlotter* plotter,
+		Eigen::Affine3d& baseT,
+		float& start,
+		float& end,
+		float& step) {
+
+	if (start > end)
+		return;
+
+	createSuperVoxelMappingForScan2(B, normalsB, 1);
+
+	std::vector<std::pair<double, double> > plotData;
+
+	// do for plotStart to plotEnd at ever plotStep increment
+
+	double x,y,z,roll,pitch,yaw;
+	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
+	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+
+	Eigen::Affine3d transform;
+	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
+
+	pitch = start;
+	svr_optimize::svr_opti_data opti_data;
+	opti_data.svMap = &supervoxelMap;
+
+	svr_optimize::svrOptimize optimizer;
+	optimizer.setOptimizeData(opti_data);
+
+	while (pitch <= end) {
+
+		// Point Cloud transformation
+		transform = Eigen::Affine3d::Identity();
+		transform.translation() << x,y,z;
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+
+		transformPointCloud (*B, *transformedScan, transform);
+
+		double cost = 0;
+		optimizer.computeCost(cost, transformedScan);
+
+		plotData.push_back(std::pair<double, double>(pitch, cost));
+		std::cout << "pitch: " << pitch << " Cost: " << cost << std::endl;
+
+		pitch += step;
+	}
+
+	plotter->addPlotData(plotData, "WRT_PITCH");
+
+}
+
+void SupervoxelRegistration::plotOptimizationIterationsForYaw(
+		pcl::visualization::PCLPlotter* plotter,
+		Eigen::Affine3d& baseT,
+		float& start,
+		float& end,
+		float& step) {
+
+	if (start > end)
+		return;
+
+	createSuperVoxelMappingForScan2(B, normalsB, 1);
+
+	std::vector<std::pair<double, double> > plotData;
+
+	// do for plotStart to plotEnd at ever plotStep increment
+
+	double x,y,z,roll,pitch,yaw;
+	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
+	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+
+	Eigen::Affine3d transform;
+	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
+
+	yaw = start;
+	svr_optimize::svr_opti_data opti_data;
+	opti_data.svMap = &supervoxelMap;
+
+	svr_optimize::svrOptimize optimizer;
+	optimizer.setOptimizeData(opti_data);
+
+	while (yaw <= end) {
+
+		// Point Cloud transformation
+		transform = Eigen::Affine3d::Identity();
+		transform.translation() << x,y,z;
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+
+		transformPointCloud (*B, *transformedScan, transform);
+
+		double cost = 0;
+		optimizer.computeCost(cost, transformedScan);
+
+		plotData.push_back(std::pair<double, double>(yaw, cost));
+		std::cout << "yaw: " << yaw << " Cost: " << cost << std::endl;
+
+		yaw += step;
+	}
+
+	plotter->addPlotData(plotData, "WRT_YAW");
+
+}
