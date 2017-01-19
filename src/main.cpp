@@ -36,12 +36,10 @@ struct options {
 	bool plotPitch;
 	bool plotYaw;
 
-	float plotStartTrans;
-	float plotEndTrans;
+	float plotRangeTrans;
 	float plotStepTrans;
 
-	float plotStartAngle;
-	float plotEndAngle;
+	float plotRangeAngle;
 	float plotStepAngle;
 
 } programOptions;
@@ -71,14 +69,12 @@ int initOptions(int argc, char* argv[]) {
 	programOptions.plotRoll = false;
 	programOptions.plotPitch = false;
 	programOptions.plotYaw = false;
-	programOptions.plotOptimizationIterations = true;
+	programOptions.plotOptimizationIterations = false;
 
-	programOptions.plotStartTrans = 0;
-	programOptions.plotEndTrans = 0;
+	programOptions.plotRangeTrans = 0;
 	programOptions.plotStepTrans = 1;
 
-	programOptions.plotStartAngle = 0;
-	programOptions.plotEndAngle = 0;
+	programOptions.plotRangeAngle = 0;
 	programOptions.plotStepAngle = 1;
 
 
@@ -98,6 +94,7 @@ int initOptions(int argc, char* argv[]) {
 
 					("plotAverageGraph", po::value<bool>(&programOptions.plotAverage), "Plot Average Results for 5,10,15 and 20 scans apart")
 					("plotResultsStep", po::value<int>(&programOptions.plotResultsStep), "Plot Results for 5,10,15 or 20 scans apart")
+					("plotOptimization", po::value<bool>(&programOptions.plotOptimizationIterations), "Plot Optimization direction from the given trans")
 
 					("plotX", po::value<bool>(&programOptions.plotX), "PlotX Score Data")
 					("plotY", po::value<bool>(&programOptions.plotY), "PlotY Score Data")
@@ -106,13 +103,11 @@ int initOptions(int argc, char* argv[]) {
 					("plotPitch", po::value<bool>(&programOptions.plotPitch), "PlotPitch Score Data")
 					("plotYaw", po::value<bool>(&programOptions.plotYaw), "PlotYaw Score Data")
 
-					("plotStartTrans", po::value<float>(&programOptions.plotStartTrans), "PlotTrans Start")
-					("plotEndTrans", po::value<float>(&programOptions.plotEndTrans), "PlotTrans End")
-					("plotStepTrans", po::value<float>(&programOptions.plotStepTrans), "PlotTrans Step Size")
+					("plotRangeTrans", po::value<float>(&programOptions.plotRangeTrans), "Translation Range to plot")
+					("plotStepTrans", po::value<float>(&programOptions.plotStepTrans), "Translation steps while plotting")
 
-					("plotStartAngle", po::value<float>(&programOptions.plotStartAngle), "PlotAngle Start")
-					("plotEndAngle", po::value<float>(&programOptions.plotEndAngle), "PlotAngle End")
-					("plotStepAngle", po::value<float>(&programOptions.plotStepAngle), "PlotAngle Step Size")
+					("plotRangeAngle", po::value<float>(&programOptions.plotRangeAngle), "Rotation Range to plot")
+					("plotStepAngle", po::value<float>(&programOptions.plotStepAngle), "Rotation steps while plotting")
 
 					("approximate,p", po::value<bool>(&programOptions.approx), "Approximate angles");
 
@@ -647,31 +642,31 @@ main (int argc, char *argv[]) {
 		if (PLOT_OPTIMIZATION) {
 			// plot Optimization
 			if (programOptions.plotX)
-				supervoxelRegistration.plotOptimizationIterationsForX(plotter, initialT, programOptions.plotStartTrans, programOptions.plotEndTrans, programOptions.plotStepTrans);
+				supervoxelRegistration.plotOptimizationIterationsForX(plotter, initialT, programOptions.plotRangeTrans, programOptions.plotStepTrans);
 			if (programOptions.plotY)
-				supervoxelRegistration.plotOptimizationIterationsForY(plotter, initialT, programOptions.plotStartTrans, programOptions.plotEndTrans, programOptions.plotStepTrans);
+				supervoxelRegistration.plotOptimizationIterationsForY(plotter, initialT, programOptions.plotRangeTrans, programOptions.plotStepTrans);
 			if (programOptions.plotZ)
-				supervoxelRegistration.plotOptimizationIterationsForZ(plotter, initialT, programOptions.plotStartTrans, programOptions.plotEndTrans, programOptions.plotStepTrans);
+				supervoxelRegistration.plotOptimizationIterationsForZ(plotter, initialT, programOptions.plotRangeTrans, programOptions.plotStepTrans);
 			if (programOptions.plotRoll)
-				supervoxelRegistration.plotOptimizationIterationsForRoll(plotter, initialT, programOptions.plotStartAngle, programOptions.plotEndAngle, programOptions.plotStepAngle);
+				supervoxelRegistration.plotOptimizationIterationsForRoll(plotter, initialT, programOptions.plotRangeAngle, programOptions.plotStepAngle);
 			if (programOptions.plotPitch)
-				supervoxelRegistration.plotOptimizationIterationsForPitch(plotter, initialT, programOptions.plotStartAngle, programOptions.plotEndAngle, programOptions.plotStepAngle);
+				supervoxelRegistration.plotOptimizationIterationsForPitch(plotter, initialT, programOptions.plotRangeAngle, programOptions.plotStepAngle);
 			if (programOptions.plotYaw)
-				supervoxelRegistration.plotOptimizationIterationsForYaw(plotter, initialT, programOptions.plotStartAngle, programOptions.plotEndAngle, programOptions.plotStepAngle);
+				supervoxelRegistration.plotOptimizationIterationsForYaw(plotter, initialT, programOptions.plotRangeAngle, programOptions.plotStepAngle);
 		} else {
 			// plotting cost for different correspondences
 			if (programOptions.plotX)
-				supervoxelRegistration.plotCostFunctionForX(plotter, initialT, programOptions.plotStartTrans, programOptions.plotEndTrans, programOptions.plotStepTrans);
+				supervoxelRegistration.plotCostFunctionForX(plotter, initialT, programOptions.plotRangeTrans, programOptions.plotStepTrans);
 			if (programOptions.plotY)
-				supervoxelRegistration.plotCostFunctionForY(plotter, initialT, programOptions.plotStartTrans, programOptions.plotEndTrans, programOptions.plotStepTrans);
+				supervoxelRegistration.plotCostFunctionForY(plotter, initialT, programOptions.plotRangeTrans, programOptions.plotStepTrans);
 			if (programOptions.plotZ)
-				supervoxelRegistration.plotCostFunctionForZ(plotter, initialT, programOptions.plotStartTrans, programOptions.plotEndTrans, programOptions.plotStepTrans);
+				supervoxelRegistration.plotCostFunctionForZ(plotter, initialT, programOptions.plotRangeTrans, programOptions.plotStepTrans);
 			if (programOptions.plotRoll)
-				supervoxelRegistration.plotCostFunctionForRoll(plotter, initialT, programOptions.plotStartAngle, programOptions.plotEndAngle, programOptions.plotStepAngle);
+				supervoxelRegistration.plotCostFunctionForRoll(plotter, initialT, programOptions.plotRangeAngle, programOptions.plotStepAngle);
 			if (programOptions.plotPitch)
-				supervoxelRegistration.plotCostFunctionForPitch(plotter, initialT, programOptions.plotStartAngle, programOptions.plotEndAngle, programOptions.plotStepAngle);
+				supervoxelRegistration.plotCostFunctionForPitch(plotter, initialT, programOptions.plotRangeAngle, programOptions.plotStepAngle);
 			if (programOptions.plotYaw)
-				supervoxelRegistration.plotCostFunctionForYaw(plotter, initialT, programOptions.plotStartAngle, programOptions.plotEndAngle, programOptions.plotStepAngle);
+				supervoxelRegistration.plotCostFunctionForYaw(plotter, initialT, programOptions.plotRangeAngle, programOptions.plotStepAngle);
 		}
 		// display
 		std::string plotTitle;
@@ -707,7 +702,8 @@ main (int argc, char *argv[]) {
 		Eigen::Affine3d result;
 		Eigen::Affine3d initialT = transform.inverse();
 
-		supervoxelRegistration.alignScans(r, initialT);
+		supervoxelRegistration.alignScansOriginal(r, initialT);
+//		supervoxelRegistration.alignScans(r, initialT);
 
 		// Save transformation in a file
 

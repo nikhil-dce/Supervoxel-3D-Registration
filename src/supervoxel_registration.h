@@ -91,6 +91,9 @@ public:
 	alignScans(Eigen::Affine3d& final_transform, Eigen::Affine3d& initial_transform);
 
 	void
+	alignScansOriginal(Eigen::Affine3d& final_transform, Eigen::Affine3d& initial_transform);
+
+	void
 	setDebug(bool d) {
 		_SVR_DEBUG_ = d;
 	}
@@ -113,86 +116,74 @@ public:
 	void plotOptimizationIterationsForX(
 			pcl::visualization::PCLPlotter* plotter,
 			Eigen::Affine3d& baseT,
-			float& start,
-			float& end,
+			float& range,
 			float& step);
 
 	void plotCostFunctionForX(
 			pcl::visualization::PCLPlotter* plotter,
 			Eigen::Affine3d& baseT,
-			float& start,
-			float& end,
+			float& range,
 			float& step);
 
 	void plotOptimizationIterationsForY(
 			pcl::visualization::PCLPlotter* plotter,
 			Eigen::Affine3d& baseT,
-			float& start,
-			float& end,
+			float& range,
 			float& step);
 
 	void plotCostFunctionForY(
 			pcl::visualization::PCLPlotter* plotter,
 			Eigen::Affine3d& baseT,
-			float& start,
-			float& end,
+			float& range,
 			float& step);
 
 
 	void plotCostFunctionForZ(
 			pcl::visualization::PCLPlotter* plotter,
 			Eigen::Affine3d& baseT,
-			float& start,
-			float& end,
+			float& range,
 			float& step);
 
 	void plotOptimizationIterationsForZ(
 			pcl::visualization::PCLPlotter* plotter,
 			Eigen::Affine3d& baseT,
-			float& start,
-			float& end,
+			float& range,
 			float& step);
 
 	void plotCostFunctionForRoll(
 				pcl::visualization::PCLPlotter* plotter,
 				Eigen::Affine3d& baseT,
-				float& start,
-				float& end,
+				float& range,
 				float& step);
 
 	void plotOptimizationIterationsForRoll(
 				pcl::visualization::PCLPlotter* plotter,
 				Eigen::Affine3d& baseT,
-				float& start,
-				float& end,
+				float& range,
 				float& step);
 
 	void plotCostFunctionForPitch(
 				pcl::visualization::PCLPlotter* plotter,
 				Eigen::Affine3d& baseT,
-				float& start,
-				float& end,
+				float& range,
 				float& step);
 
 	void plotOptimizationIterationsForPitch(
 				pcl::visualization::PCLPlotter* plotter,
 				Eigen::Affine3d& baseT,
-				float& start,
-				float& end,
+				float& range,
 				float& step);
 
 	void plotCostFunctionForYaw(
 				pcl::visualization::PCLPlotter* plotter,
 				Eigen::Affine3d& baseT,
-				float& start,
-				float& end,
+				float& range,
 				float& step);
 
 	void plotOptimizationIterationsForYaw(
 				pcl::visualization::PCLPlotter* plotter,
 				Eigen::Affine3d& baseT,
-				float& start,
-				float& end,
+				float& range,
 				float& step);
 
 protected:
@@ -291,7 +282,7 @@ private:
 	bool debug, appx;
 	SupervoxelClusteringT supervoxelClustering;
 	SVMap supervoxelMap;
-	LabeledLeafMapT leafMapping;
+	LabeledLeafMapT _leafToLabelMapping;
 	float vr, sr;
 	PointCloudT::Ptr A, B;
 //	PointCloudTNormal::Ptr B;

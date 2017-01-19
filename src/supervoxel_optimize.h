@@ -39,6 +39,8 @@ public:
 		opt_data = data;
 	}
 
+	void optimizeUsingOriginalLMA(Eigen::Affine3d& resultantTransform, float& cost);
+
 	void optimizeUsingGaussNewton(Eigen::Affine3d& resultantTransform, float& cost);
 
 	void computeCost(double& cost, svr::PointCloudT::Ptr transformedScan);

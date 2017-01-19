@@ -2,7 +2,7 @@
 #define SVR_UTIL_HPP
 
 #define NORMAL_3D_CONSTANT 0.063493636
-#define INTEGRAL_STEP 0.2
+#define INTEGRAL_STEP 2.5
 
 namespace svr_util {
 
@@ -17,7 +17,7 @@ inline Type cube(Type x)
 {
     return x * x * x; // will only work on types for which there is the * operator.
 }
-    
+
 void inline
 transform_get_translation_from_affine(Eigen::Affine3d& t, double *x, double *y, double *z) {
 
@@ -25,6 +25,19 @@ transform_get_translation_from_affine(Eigen::Affine3d& t, double *x, double *y, 
 	*y = t(1,3);
 	*z = t(2,3);
 
+}
+
+void inline
+transform_get_rotation_xyz_from_affine(Eigen::Affine3d& t, double *x, double *y, double *z) {
+	double a = t(0,0); // cycz
+	double b = t(0,1); // -cysz
+	double c = t(0,2); // sy
+	double d = t(1,2); // -sxcy
+	double e = t(2,2); // cxcy
+
+	*y = asin(c);
+	*z = atan2(-b, a);
+	*x = atan2(-d, e);
 }
 
 void inline
@@ -42,7 +55,7 @@ transform_get_rotation_from_affine(Eigen::Affine3d& t, double *x, double *y, dou
 
 }
     
-double inline calculateNormalProbabilityForPoint(float x, float y, float z, Eigen::Matrix3f& covariance, Eigen::Vector4f& mean) {
+double inline calculateNormalProbabilityForPoint(float x, float y, float z, Eigen::Vector4f& mean, Eigen::Matrix3f& covarianceInv, double determinant) {
     
     double probability;
     
@@ -52,10 +65,10 @@ double inline calculateNormalProbabilityForPoint(float x, float y, float z, Eige
     Eigen::Vector3f U;
     U << mean(0), mean(1), mean(2);
     
-    float power = (X-U).transpose() * covariance.inverse() * (X-U);
+    float power = (X-U).transpose() * covarianceInv * (X-U);
 
     float constant = NORMAL_3D_CONSTANT;
-    probability = constant * exp(-1 * power / 2) / sqrt(covariance.determinant());
+    probability = constant * exp(-1 * power / 2) / sqrt(determinant);
 
     return probability;
 }
@@ -64,6 +77,9 @@ double inline calculateApproximateIntegralForVoxel(float ax, float bx, float ay,
 
 	if (covariance.determinant() == 0)
 		return 0;
+
+	Eigen::Matrix3f covarianceInv = covariance.inverse();
+	double determinant = covariance.determinant();
 
     double integral = 0;
     double delta = INTEGRAL_STEP;
@@ -108,7 +124,7 @@ double inline calculateApproximateIntegralForVoxel(float ax, float bx, float ay,
                 wz = weights[counterZ];
                 
                 double weight = wx * wy * wz;
-                double pro = calculateNormalProbabilityForPoint(x, y, z, covariance, mean);
+                double pro = calculateNormalProbabilityForPoint(x, y, z, mean, covarianceInv, determinant);
                 integral += pro * weight;
             
             }

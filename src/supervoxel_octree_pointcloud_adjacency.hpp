@@ -226,26 +226,24 @@ pcl::octree::OctreePointCloudAdjacency<PointT, LeafContainerT, BranchContainerT>
 
 	keyx = point_arg.x / this->resolution_;
 	ax = keyx * this->resolution_;
-	if (ax < 0) {
-		bx = ax - 1;
-	} else {
-		bx = ax + 1;
-	}
+	if (ax < 0)
+		ax = ax - 1;
+
+	bx = ax + this->resolution_;
 
 	keyy = point_arg.y / this->resolution_;
 	ay = keyy * this->resolution_;
 	if (ay < 0)
-		by = ay - 1;
-	else
-		by = ay + 1;
+		ay = ay - 1;
+
+	by = ay + this->resolution_;
 
 	keyz = point_arg.z / this->resolution_;
 	az = keyz * this->resolution_;
 	if (az < 0)
-		bz = az - 1;
-	else
-		bz = az + 1;
+		az = az - 1;
 
+	bz = az + this->resolution_;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
