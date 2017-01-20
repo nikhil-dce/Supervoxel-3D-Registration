@@ -196,7 +196,7 @@ void plotErrorGraph() {
 		fileString = (boost::format(gtFileName)%dataDir%scanNo1%scanNo2).str();
 		loadTransform(fileString, transformGT);
 
-		svr_util::transform_get_rotation_from_affine(transformGT, &rollGt, &pitchGt, &yawGt);
+		svr_util::transform_get_rotation_xyz_from_affine(transformGT, &rollGt, &pitchGt, &yawGt);
 		svr_util::transform_get_translation_from_affine(transformGT, &txGt, &tyGt, &tzGt);
 
 		double errorTrans = svr_util::square(txGt) + svr_util::square(tyGt) + svr_util::square(tzGt);
@@ -209,7 +209,7 @@ void plotErrorGraph() {
 
 		fileString = (boost::format(resultFileName)%dataDir%scanNo1%scanNo2).str();
 		loadTransform(fileString, transformResult);
-		svr_util::transform_get_rotation_from_affine(transformResult, &roll, &pitch, &yaw);
+		svr_util::transform_get_rotation_xyz_from_affine(transformResult, &roll, &pitch, &yaw);
 		svr_util::transform_get_translation_from_affine(transformResult, &tx, &ty, &tz);
 
 		errorTrans = svr_util::square(txGt-tx) + svr_util::square(tyGt-ty) + svr_util::square(tzGt-tz);
@@ -222,7 +222,7 @@ void plotErrorGraph() {
 
 		fileString = (boost::format(gicpFileName)%dataDir%scanNo1%scanNo2).str();
 		loadTransform(fileString, transformGicp);
-		svr_util::transform_get_rotation_from_affine(transformGicp, &roll, &pitch, &yaw);
+		svr_util::transform_get_rotation_xyz_from_affine(transformGicp, &roll, &pitch, &yaw);
 		svr_util::transform_get_translation_from_affine(transformGicp, &tx, &ty, &tz);
 
 		errorTrans = svr_util::square(txGt-tx) + svr_util::square(tyGt-ty) + svr_util::square(tzGt-tz);
@@ -300,7 +300,7 @@ void plotGroundTruth() {
 		fileString = (boost::format(gtFileName)%dataDir%scanNo1%scanNo2).str();
 		loadTransform(fileString, transformGT);
 
-		svr_util::transform_get_rotation_from_affine(transformGT, &rollGt, &pitchGt, &yawGt);
+		svr_util::transform_get_rotation_xyz_from_affine(transformGT, &rollGt, &pitchGt, &yawGt);
 		svr_util::transform_get_translation_from_affine(transformGT, &txGt, &tyGt, &tzGt);
 
 		double errorTrans = svr_util::square(txGt) + svr_util::square(tyGt) + svr_util::square(tzGt);
@@ -313,7 +313,7 @@ void plotGroundTruth() {
 
 		fileString = (boost::format(resultFileName)%dataDir%scanNo1%scanNo2).str();
 		loadTransform(fileString, transformResult);
-		svr_util::transform_get_rotation_from_affine(transformResult, &roll, &pitch, &yaw);
+		svr_util::transform_get_rotation_xyz_from_affine(transformResult, &roll, &pitch, &yaw);
 		svr_util::transform_get_translation_from_affine(transformResult, &tx, &ty, &tz);
 
 		errorTrans = svr_util::square(txGt-tx) + svr_util::square(tyGt-ty) + svr_util::square(tzGt-tz);
@@ -326,7 +326,7 @@ void plotGroundTruth() {
 
 		fileString = (boost::format(gicpFileName)%dataDir%scanNo1%scanNo2).str();
 		loadTransform(fileString, transformGicp);
-		svr_util::transform_get_rotation_from_affine(transformGicp, &roll, &pitch, &yaw);
+		svr_util::transform_get_rotation_xyz_from_affine(transformGicp, &roll, &pitch, &yaw);
 		svr_util::transform_get_translation_from_affine(transformGicp, &tx, &ty, &tz);
 
 		errorTrans = svr_util::square(txGt-tx) + svr_util::square(tyGt-ty) + svr_util::square(tzGt-tz);
@@ -343,7 +343,7 @@ void plotGroundTruth() {
 		fileString = (boost::format(gtFileName)%dataDir%scanNo1%scanNo2).str();
 		loadTransform(fileString, transformGT);
 
-		svr_util::transform_get_rotation_from_affine(transformGT, &rollGt, &pitchGt, &yawGt);
+		svr_util::transform_get_rotation_xyz_from_affine(transformGT, &rollGt, &pitchGt, &yawGt);
 		svr_util::transform_get_translation_from_affine(transformGT, &txGt, &tyGt, &tzGt);
 
 		errorTrans = svr_util::square(txGt) + svr_util::square(tyGt) + svr_util::square(tzGt);
@@ -356,7 +356,7 @@ void plotGroundTruth() {
 
 		fileString = (boost::format(resultFileName)%dataDir%scanNo1%scanNo2).str();
 		loadTransform(fileString, transformResult);
-		svr_util::transform_get_rotation_from_affine(transformResult, &roll, &pitch, &yaw);
+		svr_util::transform_get_rotation_xyz_from_affine(transformResult, &roll, &pitch, &yaw);
 		svr_util::transform_get_translation_from_affine(transformResult, &tx, &ty, &tz);
 
 		errorTrans = svr_util::square(txGt-tx) + svr_util::square(tyGt-ty) + svr_util::square(tzGt-tz);
@@ -369,7 +369,7 @@ void plotGroundTruth() {
 
 		fileString = (boost::format(gicpFileName)%dataDir%scanNo1%scanNo2).str();
 		loadTransform(fileString, transformGicp);
-		svr_util::transform_get_rotation_from_affine(transformGicp, &roll, &pitch, &yaw);
+		svr_util::transform_get_rotation_xyz_from_affine(transformGicp, &roll, &pitch, &yaw);
 		svr_util::transform_get_translation_from_affine(transformGicp, &tx, &ty, &tz);
 
 		errorTrans = svr_util::square(txGt-tx) + svr_util::square(tyGt-ty) + svr_util::square(tzGt-tz);
@@ -385,7 +385,7 @@ void plotGroundTruth() {
 		fileString = (boost::format(gtFileName)%dataDir%scanNo1%scanNo2).str();
 		loadTransform(fileString, transformGT);
 
-		svr_util::transform_get_rotation_from_affine(transformGT, &rollGt, &pitchGt, &yawGt);
+		svr_util::transform_get_rotation_xyz_from_affine(transformGT, &rollGt, &pitchGt, &yawGt);
 		svr_util::transform_get_translation_from_affine(transformGT, &txGt, &tyGt, &tzGt);
 
 		errorTrans = svr_util::square(txGt) + svr_util::square(tyGt) + svr_util::square(tzGt);
@@ -398,7 +398,7 @@ void plotGroundTruth() {
 
 		fileString = (boost::format(resultFileName)%dataDir%scanNo1%scanNo2).str();
 		loadTransform(fileString, transformResult);
-		svr_util::transform_get_rotation_from_affine(transformResult, &roll, &pitch, &yaw);
+		svr_util::transform_get_rotation_xyz_from_affine(transformResult, &roll, &pitch, &yaw);
 		svr_util::transform_get_translation_from_affine(transformResult, &tx, &ty, &tz);
 
 		errorTrans = svr_util::square(txGt-tx) + svr_util::square(tyGt-ty) + svr_util::square(tzGt-tz);
@@ -411,7 +411,7 @@ void plotGroundTruth() {
 
 		fileString = (boost::format(gicpFileName)%dataDir%scanNo1%scanNo2).str();
 		loadTransform(fileString, transformGicp);
-		svr_util::transform_get_rotation_from_affine(transformGicp, &roll, &pitch, &yaw);
+		svr_util::transform_get_rotation_xyz_from_affine(transformGicp, &roll, &pitch, &yaw);
 		svr_util::transform_get_translation_from_affine(transformGicp, &tx, &ty, &tz);
 
 		errorTrans = svr_util::square(txGt-tx) + svr_util::square(tyGt-ty) + svr_util::square(tzGt-tz);
@@ -427,7 +427,7 @@ void plotGroundTruth() {
 		fileString = (boost::format(gtFileName)%dataDir%scanNo1%scanNo2).str();
 		loadTransform(fileString, transformGT);
 
-		svr_util::transform_get_rotation_from_affine(transformGT, &rollGt, &pitchGt, &yawGt);
+		svr_util::transform_get_rotation_xyz_from_affine(transformGT, &rollGt, &pitchGt, &yawGt);
 		svr_util::transform_get_translation_from_affine(transformGT, &txGt, &tyGt, &tzGt);
 
 		errorTrans = svr_util::square(txGt) + svr_util::square(tyGt) + svr_util::square(tzGt);
@@ -440,7 +440,7 @@ void plotGroundTruth() {
 
 		fileString = (boost::format(resultFileName)%dataDir%scanNo1%scanNo2).str();
 		loadTransform(fileString, transformResult);
-		svr_util::transform_get_rotation_from_affine(transformResult, &roll, &pitch, &yaw);
+		svr_util::transform_get_rotation_xyz_from_affine(transformResult, &roll, &pitch, &yaw);
 		svr_util::transform_get_translation_from_affine(transformResult, &tx, &ty, &tz);
 
 		errorTrans = svr_util::square(txGt-tx) + svr_util::square(tyGt-ty) + svr_util::square(tzGt-tz);
@@ -453,7 +453,7 @@ void plotGroundTruth() {
 
 		fileString = (boost::format(gicpFileName)%dataDir%scanNo1%scanNo2).str();
 		loadTransform(fileString, transformGicp);
-		svr_util::transform_get_rotation_from_affine(transformGicp, &roll, &pitch, &yaw);
+		svr_util::transform_get_rotation_xyz_from_affine(transformGicp, &roll, &pitch, &yaw);
 		svr_util::transform_get_translation_from_affine(transformGicp, &tx, &ty, &tz);
 
 		errorTrans = svr_util::square(txGt-tx) + svr_util::square(tyGt-ty) + svr_util::square(tzGt-tz);

@@ -20,7 +20,7 @@ void svrOptimize::optimizeUsingGaussNewton(Eigen::Affine3d& resultantTransform, 
 	double x,y,z,roll,pitch,yaw;
 
 	svr_util::transform_get_translation_from_affine(last_transform, &x, &y, &z);
-	svr_util::transform_get_rotation_from_affine(last_transform, &roll, &pitch, &yaw);
+	svr_util::transform_get_rotation_xyz_from_affine(last_transform, &roll, &pitch, &yaw);
 
 	int maxIteration = 20, iteration = 0;
 	bool debug = true, converged = false;
@@ -42,9 +42,9 @@ void svrOptimize::optimizeUsingGaussNewton(Eigen::Affine3d& resultantTransform, 
 		iteration++;
 		iterationTransform = Eigen::Affine3d::Identity();
 		iterationTransform.translation() << x,y,z;
-		iterationTransform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
-		iterationTransform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 		iterationTransform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+		iterationTransform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		iterationTransform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
 
 		// transform Scan
 		pcl::transformPointCloud(*scan2, *transformedScan, iterationTransform);
@@ -54,7 +54,7 @@ void svrOptimize::optimizeUsingGaussNewton(Eigen::Affine3d& resultantTransform, 
 		g.setZero();
 		currentCost = 0;
 
-		computeCostGradientHessian(currentCost, g, H, transformedScan);
+		computeCostGradientHessian(currentCost, g, H, transformedScan, x, y, z, roll, pitch, yaw);
 
 		bool converged = true;
 		for (int i = 0; i < 6; i++) {
@@ -243,7 +243,9 @@ void svrOptimize::computeCost(double &cost, svr::PointCloudT::Ptr transformedSca
 }
 
 void svrOptimize::computeCostGradientHessian(double &cost, Eigen::VectorXf& g,
-		Eigen::MatrixXf& H, svr::PointCloudT::Ptr transformedScan) {
+		Eigen::MatrixXf& H, svr::PointCloudT::Ptr transformedScan,
+		double x, double y, double z,
+		double roll, double pitch, double yaw) {
 
 	svr::SVMap* svMap = opt_data.svMap;
 	svr::SVMap::iterator svMapItr;
@@ -272,7 +274,7 @@ void svrOptimize::computeCostGradientHessian(double &cost, Eigen::VectorXf& g,
 			Eigen::Vector3f X;
 			X << p.x, p.y, p.z;
 
-			// Using small angle approximation
+//			// Using small angle approximation
 			Eigen::MatrixXf Jacobian (3,6);
 			Jacobian << 1,0,0,0,X(2),-X(1),
 					0,1,0,-X(2),0,X(0),
@@ -307,7 +309,10 @@ void svrOptimize::computeCostGradientHessian(double &cost, Eigen::VectorXf& g,
 }
 
 
-// Gauss Newton Optimization
+/*
+ * Transformation order changed
+ * as the gradient and hessian are wrt to RxRyRz
+ */
 void svrOptimize::optimizeUsingOriginalLMA(Eigen::Affine3d& resultantTransform, float& cost) {
 
 	svr::PointCloudT::Ptr scan2 = opt_data.scan2;
@@ -316,7 +321,8 @@ void svrOptimize::optimizeUsingOriginalLMA(Eigen::Affine3d& resultantTransform, 
 
 	double x,y,z,roll,pitch,yaw;
 	svr_util::transform_get_translation_from_affine(last_transform, &x, &y, &z);
-	svr_util::transform_get_rotation_from_affine(last_transform, &roll, &pitch, &yaw);
+	svr_util::transform_get_rotation_xyz_from_affine(last_transform, &roll, &pitch, &yaw);
+
 	std::cout << "Optimizing" << std::endl;
 	std::cout << "x: " << x << std::endl;
 	std::cout << "y: " << y << std::endl;
@@ -340,9 +346,9 @@ void svrOptimize::optimizeUsingOriginalLMA(Eigen::Affine3d& resultantTransform, 
 
 	iterationTransform = Eigen::Affine3d::Identity();
 	iterationTransform.translation() << x,y,z;
-	iterationTransform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
-	iterationTransform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 	iterationTransform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+	iterationTransform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+	iterationTransform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
 
 	// transform Scan
 	pcl::transformPointCloud(*scan2, *transformedScan, iterationTransform);
@@ -352,7 +358,7 @@ void svrOptimize::optimizeUsingOriginalLMA(Eigen::Affine3d& resultantTransform, 
 	g.setZero();
 	currentCost = 0;
 
-	computeCostGradientHessian(currentCost, g, H, transformedScan);
+	computeCostGradientHessian(currentCost, g, H, transformedScan, x, y, z, roll, pitch, yaw);
 
 	bool converged = true;
 	for (int i = 0; i < 6; i++) {
@@ -440,13 +446,13 @@ void svrOptimize::optimizeUsingOriginalLMA(Eigen::Affine3d& resultantTransform, 
 		predicted_pitch = pitch - poseStep(4);
 		predicted_yaw = yaw - poseStep(5);
 
-		iterationTransform = Eigen::Affine3d::Identity();
-		iterationTransform.translation() << predicted_x, predicted_y, predicted_z;
-		iterationTransform.rotate (Eigen::AngleAxisd (predicted_roll, Eigen::Vector3d::UnitX()));
-		iterationTransform.rotate (Eigen::AngleAxisd (predicted_pitch, Eigen::Vector3d::UnitY()));
-		iterationTransform.rotate(Eigen::AngleAxisd (predicted_yaw, Eigen::Vector3d::UnitZ()));
+		Eigen::Affine3d predictedTransform = Eigen::Affine3d::Identity();
+		predictedTransform.translation() << predicted_x, predicted_y, predicted_z;
+		predictedTransform.rotate(Eigen::AngleAxisd (predicted_yaw, Eigen::Vector3d::UnitZ()));
+		predictedTransform.rotate (Eigen::AngleAxisd (predicted_pitch, Eigen::Vector3d::UnitY()));
+		predictedTransform.rotate (Eigen::AngleAxisd (predicted_roll, Eigen::Vector3d::UnitX()));
 
-		pcl::transformPointCloud(*scan2, *transformedScan, iterationTransform);
+		pcl::transformPointCloud(*scan2, *transformedScan, predictedTransform);
 		double newCost = 0;
 
 		computeCost(newCost, transformedScan);
@@ -460,7 +466,7 @@ void svrOptimize::optimizeUsingOriginalLMA(Eigen::Affine3d& resultantTransform, 
 			if (fabs(diff) < tol) {
 				// converged
 				cout << "Change in cost is very minute. Ending iteration" << std::endl;
-				resultantTransform = iterationTransform;
+				resultantTransform = predictedTransform;
 				cost = newCost;
 				return;
 			}
@@ -483,6 +489,7 @@ void svrOptimize::optimizeUsingOriginalLMA(Eigen::Affine3d& resultantTransform, 
 			std::cout << "pitch" << pitch << std::endl;
 			std::cout << "yaw: " << yaw << std::endl;
 
+			iterationTransform = predictedTransform;
 			iterationComplete = true;
 
 		} else {

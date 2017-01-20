@@ -1016,7 +1016,7 @@ void SupervoxelRegistration::plotCostFunctionForX(
 	double actualX;
 	double x,y,z,roll,pitch,yaw;
 	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
-	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+	svr_util::transform_get_rotation_xyz_from_affine(baseT, &roll, &pitch, &yaw);
 
 	Eigen::Affine3d transform, normalTransformation;
 	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
@@ -1030,9 +1030,9 @@ void SupervoxelRegistration::plotCostFunctionForX(
 		// Point Cloud transformation
 		transform = Eigen::Affine3d::Identity();
 		transform.translation() << x,y,z;
-		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
-		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
 
 		transformPointCloud (*B, *transformedScan, transform);
 
@@ -1087,7 +1087,7 @@ void SupervoxelRegistration::plotCostFunctionForY(
 
 	double x,y,z,roll,pitch,yaw;
 	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
-	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+	svr_util::transform_get_rotation_xyz_from_affine(baseT, &roll, &pitch, &yaw);
 
 	Eigen::Affine3d transform, normalTransformation;
 	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
@@ -1101,9 +1101,9 @@ void SupervoxelRegistration::plotCostFunctionForY(
 		// Point Cloud transformation
 		transform = Eigen::Affine3d::Identity();
 		transform.translation() << x,y,z;
-		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
-		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
 
 		transformPointCloud (*B, *transformedScan, transform);
 
@@ -1158,7 +1158,7 @@ void SupervoxelRegistration::plotCostFunctionForZ(
 
 	double x,y,z,roll,pitch,yaw;
 	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
-	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+	svr_util::transform_get_rotation_xyz_from_affine(baseT, &roll, &pitch, &yaw);
 
 	Eigen::Affine3d transform, normalTransformation;
 	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
@@ -1172,9 +1172,9 @@ void SupervoxelRegistration::plotCostFunctionForZ(
 		// Point Cloud transformation
 		transform = Eigen::Affine3d::Identity();
 		transform.translation() << x,y,z;
-		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
-		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
 
 		transformPointCloud (*B, *transformedScan, transform);
 
@@ -1229,7 +1229,7 @@ void SupervoxelRegistration::plotCostFunctionForRoll(
 
 	double x,y,z,roll,pitch,yaw;
 	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
-	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+	svr_util::transform_get_rotation_xyz_from_affine(baseT, &roll, &pitch, &yaw);
 
 	Eigen::Affine3d transform, normalTransformation;
 	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
@@ -1245,9 +1245,9 @@ void SupervoxelRegistration::plotCostFunctionForRoll(
 		// Point Cloud transformation
 		transform = Eigen::Affine3d::Identity();
 		transform.translation() << x,y,z;
-		transform.rotate (Eigen::AngleAxisd (rollVar, Eigen::Vector3d::UnitX()));
-		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate (Eigen::AngleAxisd (rollVar, Eigen::Vector3d::UnitX()));
 
 		transformPointCloud (*B, *transformedScan, transform);
 
@@ -1300,7 +1300,7 @@ void SupervoxelRegistration::plotCostFunctionForPitch(
 
 	double x,y,z,roll,pitch,yaw;
 	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
-	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+	svr_util::transform_get_rotation_xyz_from_affine(baseT, &roll, &pitch, &yaw);
 
 	Eigen::Affine3d transform, normalTransformation;
 	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
@@ -1316,9 +1316,9 @@ void SupervoxelRegistration::plotCostFunctionForPitch(
 		// Point Cloud transformation
 		transform = Eigen::Affine3d::Identity();
 		transform.translation() << x,y,z;
-		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
-		transform.rotate (Eigen::AngleAxisd (pitchVar, Eigen::Vector3d::UnitY()));
 		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+		transform.rotate (Eigen::AngleAxisd (pitchVar, Eigen::Vector3d::UnitY()));
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
 
 		transformPointCloud (*B, *transformedScan, transform);
 
@@ -1371,7 +1371,7 @@ void SupervoxelRegistration::plotCostFunctionForYaw(
 
 	double x,y,z,roll,pitch,yaw;
 	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
-	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+	svr_util::transform_get_rotation_xyz_from_affine(baseT, &roll, &pitch, &yaw);
 
 	Eigen::Affine3d transform, normalTransformation;
 	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
@@ -1387,9 +1387,9 @@ void SupervoxelRegistration::plotCostFunctionForYaw(
 		// Point Cloud transformation
 		transform = Eigen::Affine3d::Identity();
 		transform.translation() << x,y,z;
-		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
-		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 		transform.rotate(Eigen::AngleAxisd (yawVar, Eigen::Vector3d::UnitZ()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
 
 		transformPointCloud (*B, *transformedScan, transform);
 
@@ -1465,7 +1465,7 @@ void SupervoxelRegistration::plotOptimizationIterationsForX(
 
 	double x,y,z,roll,pitch,yaw;
 	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
-	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+	svr_util::transform_get_rotation_xyz_from_affine(baseT, &roll, &pitch, &yaw);
 	std::cout << "Initial x:" << x << std::endl;
 	std::cout << "Initial y:" << y << std::endl;
 	std::cout << "Initial z:" << z << std::endl;
@@ -1488,9 +1488,9 @@ void SupervoxelRegistration::plotOptimizationIterationsForX(
 		// Point Cloud transformation
 		transform = Eigen::Affine3d::Identity();
 		transform.translation() << x,y,z;
-		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
-		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
 
 		transformPointCloud (*B, *transformedScan, transform);
 
@@ -1540,7 +1540,7 @@ void SupervoxelRegistration::plotOptimizationIterationsForY(
 
 	double x,y,z,roll,pitch,yaw;
 	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
-	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+	svr_util::transform_get_rotation_xyz_from_affine(baseT, &roll, &pitch, &yaw);
 
 	Eigen::Affine3d transform;
 
@@ -1558,9 +1558,9 @@ void SupervoxelRegistration::plotOptimizationIterationsForY(
 		// Point Cloud transformation
 		transform = Eigen::Affine3d::Identity();
 		transform.translation() << x,y,z;
-		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
-		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
 
 		transformPointCloud (*B, *transformedScan, transform);
 
@@ -1610,7 +1610,7 @@ void SupervoxelRegistration::plotOptimizationIterationsForZ(
 
 	double x,y,z,roll,pitch,yaw;
 	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
-	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+	svr_util::transform_get_rotation_xyz_from_affine(baseT, &roll, &pitch, &yaw);
 
 	Eigen::Affine3d transform;
 
@@ -1628,9 +1628,9 @@ void SupervoxelRegistration::plotOptimizationIterationsForZ(
 		// Point Cloud transformation
 		transform = Eigen::Affine3d::Identity();
 		transform.translation() << x,y,z;
-		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
-		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
 
 		transformPointCloud (*B, *transformedScan, transform);
 
@@ -1680,7 +1680,7 @@ void SupervoxelRegistration::plotOptimizationIterationsForRoll(
 
 	double x,y,z,roll,pitch,yaw;
 	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
-	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+	svr_util::transform_get_rotation_xyz_from_affine(baseT, &roll, &pitch, &yaw);
 
 	Eigen::Affine3d transform;
 
@@ -1699,9 +1699,9 @@ void SupervoxelRegistration::plotOptimizationIterationsForRoll(
 		// Point Cloud transformation
 		transform = Eigen::Affine3d::Identity();
 		transform.translation() << x,y,z;
-		transform.rotate (Eigen::AngleAxisd (rollVar, Eigen::Vector3d::UnitX()));
-		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate (Eigen::AngleAxisd (rollVar, Eigen::Vector3d::UnitX()));
 
 		transformPointCloud (*B, *transformedScan, transform);
 
@@ -1751,7 +1751,7 @@ void SupervoxelRegistration::plotOptimizationIterationsForPitch(
 
 	double x,y,z,roll,pitch,yaw;
 	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
-	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+	svr_util::transform_get_rotation_xyz_from_affine(baseT, &roll, &pitch, &yaw);
 
 	Eigen::Affine3d transform;
 
@@ -1771,9 +1771,9 @@ void SupervoxelRegistration::plotOptimizationIterationsForPitch(
 		// Point Cloud transformation
 		transform = Eigen::Affine3d::Identity();
 		transform.translation() << x,y,z;
-		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
-		transform.rotate (Eigen::AngleAxisd (pitchVar, Eigen::Vector3d::UnitY()));
 		transform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+		transform.rotate (Eigen::AngleAxisd (pitchVar, Eigen::Vector3d::UnitY()));
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
 
 		transformPointCloud (*B, *transformedScan, transform);
 
@@ -1824,7 +1824,7 @@ void SupervoxelRegistration::plotOptimizationIterationsForYaw(
 
 	double x,y,z,roll,pitch,yaw;
 	svr_util::transform_get_translation_from_affine(baseT, &x, &y, &z);
-	svr_util::transform_get_rotation_from_affine(baseT, &roll, &pitch, &yaw);
+	svr_util::transform_get_rotation_xyz_from_affine(baseT, &roll, &pitch, &yaw);
 
 	Eigen::Affine3d transform;
 
@@ -1844,9 +1844,9 @@ void SupervoxelRegistration::plotOptimizationIterationsForYaw(
 		// Point Cloud transformation
 		transform = Eigen::Affine3d::Identity();
 		transform.translation() << x,y,z;
-		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
-		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
 		transform.rotate(Eigen::AngleAxisd (yawVar, Eigen::Vector3d::UnitZ()));
+		transform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+		transform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
 
 		transformPointCloud (*B, *transformedScan, transform);
 

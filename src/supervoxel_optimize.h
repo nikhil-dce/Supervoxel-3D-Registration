@@ -45,7 +45,10 @@ public:
 
 	void computeCost(double& cost, svr::PointCloudT::Ptr transformedScan);
 
-	void computeCostGradientHessian(double &cost, Eigen::VectorXf& g, Eigen::MatrixXf& H, svr::PointCloudT::Ptr transformedScan);
+	void computeCostGradientHessian(double &cost, Eigen::VectorXf& g,
+			Eigen::MatrixXf& H, svr::PointCloudT::Ptr transformedScan,
+			double x, double y, double z,
+			double roll, double pitch, double yaw);
 
 private:
 
