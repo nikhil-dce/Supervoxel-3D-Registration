@@ -1799,24 +1799,25 @@ void SupervoxelRegistration::plotOptimizationIterationsForYaw(
 	PointCloudT::Ptr transformedScan = boost::shared_ptr <PointCloudT> (new PointCloudT ());
 	PointCloudXYZ::Ptr transformedNormalsB = boost::shared_ptr <PointCloudXYZ> (new PointCloudXYZ ());
 
-	transformPointCloud (*B, *transformedScan, baseT);
-	Eigen::Affine3d normalTransformation = Eigen::Affine3d::Identity();
+//	transformPointCloud (*B, *transformedScan, baseT);
+//	Eigen::Affine3d normalTransformation = Eigen::Affine3d::Identity();
+//
+//	// copy rotation matrix
+//	for(int k = 0; k < 3; k++) {
+//		for(int l = 0; l < 3; l++) {
+//			normalTransformation.matrix()(k,l) = baseT.matrix()(k,l);
+//		}
+//	}
+//
+//	transformPointCloud (*normalsB, *transformedNormalsB, normalTransformation);
+//	for (int pi = 0; pi<transformedNormalsB->size(); ++pi) {
+//		pcl::PointXYZ pN = transformedNormalsB->at(pi);
+//		pcl::flipNormalTowardsViewpoint(transformedScan->at(pi), 0, 0, 0, pN.x, pN.y, pN.z);
+//	}
 
-	// copy rotation matrix
-	for(int k = 0; k < 3; k++) {
-		for(int l = 0; l < 3; l++) {
-			normalTransformation.matrix()(k,l) = baseT.matrix()(k,l);
-		}
-	}
+//	createSuperVoxelMappingForScan2(transformedScan, transformedNormalsB, 1);
 
-	transformPointCloud (*normalsB, *transformedNormalsB, normalTransformation);
-	for (int pi = 0; pi<transformedNormalsB->size(); ++pi) {
-		pcl::PointXYZ pN = transformedNormalsB->at(pi);
-		pcl::flipNormalTowardsViewpoint(transformedScan->at(pi), 0, 0, 0, pN.x, pN.y, pN.z);
-	}
-
-	createSuperVoxelMappingForScan2(transformedScan, transformedNormalsB, 1);
-
+	createSuperVoxelMappingForScan2(B, normalsB, 1);
 
 	std::vector<std::pair<double, double> > plotData;
 
@@ -1882,7 +1883,7 @@ SupervoxelRegistration::alignScansOriginal(Eigen::Affine3d& final_transform, Eig
 	double epsilon = 5e-4;
 	double epsilon_rot = 2e-3;
 	double epsilon_cost = 2e-1;
-	int maxIteration = 20;
+	int maxIteration = 30;
 
 	cout << "Initial T: " << std::endl << trans_last.matrix(); cout << std::endl;
 

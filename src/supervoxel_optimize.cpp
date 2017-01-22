@@ -280,14 +280,14 @@ void svrOptimize::computeCostGradientHessian(double &cost, Eigen::VectorXf& g,
 					0,1,0,-X(2),0,X(0),
 					0,0,1,X(1),-X(0),0;
 
-			float power = (X-U).transpose() * covarianceInv * (X-U);
+			float power = ((X-U).transpose()) * covarianceInv * (X-U);
 			power = -d2 * power / 2;
 			double exponentPower = exp(power);
 
 			cost += d1 * exponentPower;
 
 			for (int i=0; i<6; i++) {
-				g(i) += (-d1 * d2 * exponentPower * (X-U).transpose() * covarianceInv * Jacobian.col(i));
+				g(i) += (-d1 * d2 * exponentPower * ((X-U).transpose()) * covarianceInv * (Jacobian.col(i)));
 			}
 
 			for (int i = 0; i < 6; i++) {
@@ -295,10 +295,10 @@ void svrOptimize::computeCostGradientHessian(double &cost, Eigen::VectorXf& g,
 					double r = -d1*d2*exponentPower;
 
 					double r2 = -d2;
-					r2 *= (X-U).transpose()*covarianceInv*Jacobian.col(i);
-					r2 *= (X-U).transpose()*covarianceInv*Jacobian.col(j);
+					r2 *= ((X-U).transpose()) * covarianceInv* (Jacobian.col(i));
+					r2 *= ((X-U).transpose()) * covarianceInv * (Jacobian.col(j));
 
-					double r3 = Jacobian.col(j).transpose()*covarianceInv*Jacobian.col(i);
+					double r3 = (Jacobian.col(j).transpose()) * covarianceInv * (Jacobian.col(i));
 					r = r * (r2+r3);
 					H(i,j) = H(i,j) + r;
 				}
@@ -332,7 +332,7 @@ void svrOptimize::optimizeUsingOriginalLMA(Eigen::Affine3d& resultantTransform, 
 	std::cout << "yaw: " << yaw << std::endl;
 
 	bool debug = true;
-	double tol = 1e-4, stepSize = 1., poseRotTol = 1e-15, poseTransTol = 1e-10;
+	double tol = 1e-4, stepSize = 1.1, poseRotTol = 1e-15, poseTransTol = 1e-10;
 	float lambda = 1e-3;
 
 	svr::SVMap::iterator svMapItr;
@@ -388,6 +388,14 @@ void svrOptimize::optimizeUsingOriginalLMA(Eigen::Affine3d& resultantTransform, 
 
 	std::cout << "Hessian: " << std::endl << H << std::endl;
 
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd (H, Eigen::ComputeFullU | Eigen::ComputeFullV);
+
+    Eigen::VectorXf singularValues = svd.singularValues();
+    Eigen::MatrixXf U = svd.matrixU();
+    Eigen::MatrixXf V = svd.matrixV();
+
+    std::cout << singularValues.matrix() << std::endl;
+
 	Eigen::MatrixXf A = H;
 
 
@@ -407,8 +415,8 @@ void svrOptimize::optimizeUsingOriginalLMA(Eigen::Affine3d& resultantTransform, 
 
 		//			std::cout << "A: " << std::endl << A;
 		//			std::cout << std::endl;
-		poseStep = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(g);
-		poseStep = stepSize * poseStep;
+		poseStep = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(-g);
+//		poseStep = stepSize * poseStep;
 		//		poseStep = stepSize * g;
 		std::cout << "Pose Step: " << std::endl << poseStep << std::endl;
 
@@ -439,12 +447,12 @@ void svrOptimize::optimizeUsingOriginalLMA(Eigen::Affine3d& resultantTransform, 
 
 		double predicted_x,predicted_y, predicted_z, predicted_roll, predicted_pitch, predicted_yaw;
 
-		predicted_x= x - poseStep(0);
-		predicted_y = y - poseStep(1);
-		predicted_z = z - poseStep(2);
-		predicted_roll = roll - poseStep(3);
-		predicted_pitch = pitch - poseStep(4);
-		predicted_yaw = yaw - poseStep(5);
+		predicted_x= x + poseStep(0);
+		predicted_y = y + poseStep(1);
+		predicted_z = z + poseStep(2);
+		predicted_roll = roll + poseStep(3);
+		predicted_pitch = pitch + poseStep(4);
+		predicted_yaw = yaw + poseStep(5);
 
 		Eigen::Affine3d predictedTransform = Eigen::Affine3d::Identity();
 		predictedTransform.translation() << predicted_x, predicted_y, predicted_z;
@@ -463,6 +471,53 @@ void svrOptimize::optimizeUsingOriginalLMA(Eigen::Affine3d& resultantTransform, 
 
 		if (diff > 0) {
 
+			// we now have the direction in poseStride
+            // need to calculate the steps
+            
+            std::cout << "Direction found. Now searching for number of steps" << std::endl;
+            
+            int stepPredictIteration = 0;
+            double lastMinCost = newCost;
+            
+            while (true) {
+
+                stepPredictIteration++;
+                double step = stepPredictIteration * stepSize;
+                
+                predicted_x = x + step*poseStep(0);
+                predicted_y = y + step*poseStep(1);
+                predicted_z = z + step*poseStep(2);
+                predicted_roll = roll + step*poseStep(3);
+                predicted_pitch = pitch + step*poseStep(4);
+                predicted_yaw = yaw + step*poseStep(5);
+                
+                Eigen::Affine3d stepPredictedTransform = Eigen::Affine3d::Identity();
+                stepPredictedTransform.translation() << predicted_x, predicted_y, predicted_z;
+                stepPredictedTransform.rotate(Eigen::AngleAxisd (predicted_yaw, Eigen::Vector3d::UnitZ()));
+                stepPredictedTransform.rotate (Eigen::AngleAxisd (predicted_pitch, Eigen::Vector3d::UnitY()));
+                stepPredictedTransform.rotate (Eigen::AngleAxisd (predicted_roll, Eigen::Vector3d::UnitX()));
+                
+                pcl::transformPointCloud(*scan2, *transformedScan, stepPredictedTransform);
+                computeCost(newCost, transformedScan);
+                
+                std::cout << "Cost after taking " << step << " steps: " << newCost << std::endl;
+                
+                if (newCost >= lastMinCost) {
+                    stepPredictIteration--;
+                    break;
+                } else {
+                    lastMinCost = newCost;
+                    
+                }
+                
+            }
+            
+            double correctStep = stepPredictIteration * stepSize;
+            if (correctStep == 0)
+                correctStep = 1;
+            
+            diff = currentCost - lastMinCost;
+            
 			if (fabs(diff) < tol) {
 				// converged
 				cout << "Change in cost is very minute. Ending iteration" << std::endl;
@@ -474,13 +529,13 @@ void svrOptimize::optimizeUsingOriginalLMA(Eigen::Affine3d& resultantTransform, 
 			std::cout << "Taking the step" << std::endl;
 
 			lambda /= 10;
-
-			x = predicted_x;
-			y = predicted_y;
-			z = predicted_z;
-			roll = predicted_roll;
-			pitch = predicted_pitch;
-			yaw = predicted_yaw;
+            
+            x = x + correctStep*poseStep(0);
+            y = y + correctStep*poseStep(1);
+            z = z + correctStep*poseStep(2);
+            roll = roll + correctStep*poseStep(3);
+            pitch = pitch + correctStep*poseStep(4);
+            yaw = yaw + correctStep*poseStep(5);
 
 			std::cout << "x: " << x << std::endl;
 			std::cout << "y: " << y << std::endl;
@@ -489,6 +544,12 @@ void svrOptimize::optimizeUsingOriginalLMA(Eigen::Affine3d& resultantTransform, 
 			std::cout << "pitch" << pitch << std::endl;
 			std::cout << "yaw: " << yaw << std::endl;
 
+            predictedTransform = Eigen::Affine3d::Identity();
+            predictedTransform.translation() << x, y, z;
+            predictedTransform.rotate(Eigen::AngleAxisd (yaw, Eigen::Vector3d::UnitZ()));
+            predictedTransform.rotate (Eigen::AngleAxisd (pitch, Eigen::Vector3d::UnitY()));
+            predictedTransform.rotate (Eigen::AngleAxisd (roll, Eigen::Vector3d::UnitX()));
+            
 			iterationTransform = predictedTransform;
 			iterationComplete = true;
 
